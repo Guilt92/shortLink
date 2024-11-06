@@ -1,3 +1,11 @@
-fn main() {
-    println!("Hello, world!");
+mod routes;
+
+use std::error::Error;
+
+
+
+#[tokio::main]
+async fn main() -> Result<(),Box<dyn Error>> {
+    Ok(())
 }
+
