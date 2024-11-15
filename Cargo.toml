@@ -5,6 +5,7 @@ edition = "2021"
 
 
 [dependencies]
+idna = "1.0.3"
 axum = "0.7.2"
 axum-prometheus = "0.5.0"
 base64 = "0.21.5"
@@ -12,13 +13,13 @@ dotenvy = "0.15.7"
 metrics = "0.21.1"
 metrics-exporter-prometheus = "0.12.1"
 rand = "0.8.5"
-serde = { version = "1.0.193", features = ["derive"] }
+serde = "1.0.215"
 serde_json = "1.0.108"
 sha3 = "0.10.8"
-sqlx = { version = "0.7.3", features = ["runtime-tokio-rustls", "postgres"] }
-tokio = { version = "1.35.0", features = ["full"] }
+sqlx = "0.8.2"
+tokio = "1.41.1"
 tower = "0.4.13"
-tower-http = { version = "0.5.0", features = ["trace"] }
+tower-http = "0.6.1"
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-subscriber = "0.3.18"
 url = "2.5.0"
