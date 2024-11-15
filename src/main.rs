@@ -21,8 +21,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
-    let app = Router::new().route("/health", get(health));
-
+    let app = Router::new().route("/health", get(health))
+        .route("/metrics" ,  get(|| async move {metric_handle.render()}));
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .expect("Could Not Respond TcpListener Bind");
