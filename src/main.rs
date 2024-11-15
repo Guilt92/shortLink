@@ -18,6 +18,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+
+        let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+
     let app = Router::new().route("/health", get(health));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
