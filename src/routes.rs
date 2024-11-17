@@ -1,5 +1,6 @@
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use crate::utils::internal_error;
 
 pub async fn health() -> impl IntoResponse {
     (StatusCode::OK, "Service is healthy")
@@ -16,4 +17,12 @@ pub struct Link {
 #[serde(rename_all = "camelCase")]
 pub struct LinkTarget {
     pub target_url: String,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CountedLinkStatistic {
+    pub amount: Option<i64>,
+    pub referer: Option<String>,
+    pub user_agent: Option<String>,
 }
