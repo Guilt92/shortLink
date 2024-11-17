@@ -6,12 +6,15 @@ use axum_prometheus::lifecycle::layer;
 use axum_prometheus::PrometheusMetricLayer;
 use routes::health;
 use std::error::Error;
+use dotenvy::dotenv;
+use sqlx::postgres::PgPoolOptions;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    dotenv().ok();
     // log
     tracing_subscriber::registry()
         .with(
