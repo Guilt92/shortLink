@@ -21,6 +21,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    let db_url =
+        std::env::var("DATABASE_URL").expect("DATABASE_URL is a required environment variable");
+
+    let db = PgPoolOptions::new()
+        .max_connections(20)
+        .connect(&db_url)
+        .await?;
+
     let (_prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app = Router::new()
