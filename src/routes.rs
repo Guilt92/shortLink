@@ -12,11 +12,6 @@ use url::Url;
 
 use crate::utils::internal_error;
 
-
-pub async fn health() -> impl IntoResponse {
-    (StatusCode::OK, "Service is healthy")
-}
-
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Link {
@@ -45,4 +40,6 @@ fn generate_id() -> String {
     general_purpose::URL_SAFE_NO_PAD.encode(random_number.to_string())
 }
 
-
+pub async fn health() -> impl IntoResponse {
+    (StatusCode::OK, "Service is healthy")
+}
