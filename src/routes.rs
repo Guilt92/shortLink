@@ -37,3 +37,12 @@ pub struct CountedLinkStatistic {
     pub referer: Option<String>,
     pub user_agent: Option<String>,
 }
+
+
+
+fn generate_id() -> String {
+    let random_number = rand::thread_rng().gen_range(0..u32::MAX);
+    general_purpose::URL_SAFE_NO_PAD.encode(random_number.to_string())
+}
+
+
