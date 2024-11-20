@@ -9,8 +9,8 @@ use rand::Rng;
 use sqlx::{Error, PgPool};
 use sqlx::error::ErrorKind;
 use url::Url;
-
 use crate::utils::internal_error;
+
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]

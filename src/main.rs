@@ -1,5 +1,5 @@
-mod routes;
 
+mod utils;
 use axum::routing::get;
 use axum::Router;
 use axum_prometheus::lifecycle::layer;
