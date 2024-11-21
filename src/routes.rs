@@ -7,8 +7,6 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use rand::Rng;
 use sqlx::PgPool;
-
-
 use crate::utils::internal_error;
 
 const DEFAULT_CACHE_CONTROL_HEADER_VALUE: &str =
@@ -50,11 +48,11 @@ pub async fn redirect(
 ) -> Result<Response, (StatusCode, String)> {
     let select_timeout = tokio::time::Duration::from_millis(300);
 
-    let Link = tokio::time::timeout(
+    let link = tokio::time::timeout(
         select_timeout,
         sqlx::query_as!(
             Link,
-            "select id , target_url from link  where id=$1",
+            "select id, target_url from link where id=$1",
             requested_link
         )
         .fetch_optional(&pool),
@@ -62,18 +60,18 @@ pub async fn redirect(
     .await
     .map_err(internal_error)?
     .map_err(internal_error)?
-    .ok_or_else(|| "Not Found ".to_string())
+    .ok_or_else(|| "Not Found".to_string())
     .map_err(|err| (StatusCode::NOT_FOUND, err))?;
 
     tracing::debug!(
         "Redirecting link id {} to {}",
-        requested_link,
-        Link.target_url
+        requested_link, 
+        link.target_url
     );
 
     Ok(Response::builder()
         .status(StatusCode::TEMPORARY_REDIRECT)
-        .header("Location", Link.target_url)
+        .header("Location", link.target_url)
         .body(Body::empty())
         .expect("This response should always be constructable"))
 }
