@@ -71,6 +71,7 @@ pub async fn redirect(
 
     Ok(Response::builder()
         .status(StatusCode::TEMPORARY_REDIRECT)
+        .header("Cache-Control", DEFAULT_CACHE_CONTROL_HEADER_VALUE)
         .header("Location", link.target_url)
         .body(Body::empty())
         .expect("This response should always be constructable"))
