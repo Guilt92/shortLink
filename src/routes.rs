@@ -55,7 +55,7 @@ pub async fn redirect(
         sqlx::query_as!(
             Link,
             "select id , target_url from link  where id=$1",
-            request_link
+            requested_link
         )
         .fetch_optional(&pool),
     )
