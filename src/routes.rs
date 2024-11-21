@@ -52,7 +52,7 @@ pub async fn redirect(
         select_timeout,
         sqlx::query_as!(
             Link,
-            "select id, target_url from link where id=$1",
+            "select id, target_url from link where id = $1",
             requested_link
         )
         .fetch_optional(&pool),

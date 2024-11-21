@@ -11,6 +11,8 @@ use std::error::Error;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use std::env;
+use sqlx::PgPool;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -27,7 +29,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let db_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL is a required environment variable");
 
-    let db = PgPoolOptions::new()
+    let _db = PgPoolOptions::new()
         .max_connections(20)
         .connect(&db_url)
         .await?;
