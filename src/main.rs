@@ -1,13 +1,13 @@
-
+mod routes;
 mod utils;
 use axum::routing::get;
 use axum::Router;
 use axum_prometheus::lifecycle::layer;
 use axum_prometheus::PrometheusMetricLayer;
-use routes::health;
-use std::error::Error;
 use dotenvy::dotenv;
+use routes::health;
 use sqlx::postgres::PgPoolOptions;
+use std::error::Error;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;

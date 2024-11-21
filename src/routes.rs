@@ -1,16 +1,9 @@
-use axum::body::Body;
-use axum::extract::{Path, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::Json;
-use axum::response::{IntoResponse, Response};
-use base64::Engine;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use base64::engine::general_purpose;
+use base64::Engine;
 use rand::Rng;
-use sqlx::{Error, PgPool};
-use sqlx::error::ErrorKind;
-use url::Url;
-use crate::utils::internal_error;
-
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,8 +25,6 @@ pub struct CountedLinkStatistic {
     pub referer: Option<String>,
     pub user_agent: Option<String>,
 }
-
-
 
 fn generate_id() -> String {
     let random_number = rand::thread_rng().gen_range(0..u32::MAX);

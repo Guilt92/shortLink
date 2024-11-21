@@ -9,7 +9,8 @@ axum = "0.7.2"
 axum-prometheus = "0.7.0"
 base64 = "0.22.1"
 dotenvy = "0.15.7"
-metrics = "0.24.0"
+metrics = { version = "0.24.0" }
+metrics-prometheus = "=0.2.0"
 metrics-exporter-prometheus = "0.16.0"
 rand = "0.8.5"
 serde = { version = "1.0.215", features = ["derive"] }
