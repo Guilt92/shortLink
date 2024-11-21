@@ -40,7 +40,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/health", get(health))
         .layer(TraceLayer::new_for_http())
-        .layer(_prometheus_layer);
+        .layer(_prometheus_layer)
+        .with_state(_db);
+
+
+
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .expect("Could Not Respond TcpListener Bind");
