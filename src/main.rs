@@ -5,7 +5,8 @@ use axum::Router;
 use axum_prometheus::lifecycle::layer;
 use axum_prometheus::PrometheusMetricLayer;
 use dotenvy::dotenv;
-use routes::health;
+use axum::routing::post;
+use routes::{create_link, health};
 use sqlx::postgres::PgPoolOptions;
 use std::error::Error;
 use tower_http::trace::TraceLayer;
@@ -37,6 +38,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (_prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app = Router::new()
+    .route("/create_link", post(create_link))
+        .route("/:id", get(redirect))
         .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/health", get(health))
         .layer(TraceLayer::new_for_http())

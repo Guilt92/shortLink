@@ -3,10 +3,12 @@ use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use base64::engine::general_purpose;
 use base64::Engine;
 use rand::Rng;
 use sqlx::PgPool;
+use url::Url;
 use crate::utils::internal_error;
 
 const DEFAULT_CACHE_CONTROL_HEADER_VALUE: &str =
@@ -76,3 +78,45 @@ pub async fn redirect(
         .body(Body::empty())
         .expect("This response should always be constructable"))
 }
+
+pub async fn create_link (
+    State(pool) : State<PgPool>,
+    Json(new_link): Json<LinkTarget>,
+ ) -> Result<Json<Link> , (StatusCode, String)>{
+
+    let url = Url::parse(&new_link.target_url).map_err(|_| (StatusCode::CONFLICT ,  "url malformed ".into()))?.to_string();
+
+
+    let insert_link_timeout = tokio::time::Duration::from_millis(300);
+
+    for _ in 1.=3 {
+        let new_link_id=generate_id();
+
+        let new_link=tokio::time::timeout(insert_link_timeout, 
+            
+            sqlx::query_as!(
+                link,
+                r#"
+                    with inserted_link as (
+                    insert into link (id , target_url)
+                    values ($1 , &2)
+                    returning id , target_url
+                    )
+                    select id , target_url from inserted_link              
+                "#,
+                &new_link_id,
+                &url
+            )
+            .fetch_one(&pool)
+        )
+        .await
+        .map_err(internal_error)?
+         .map_err(internal_error)?;
+
+         tracing::debug!(
+            "Redirecting link id {} to {}",
+            new_link_id, 
+            url
+        );
+        Ok(Json(new_link));
+    }
