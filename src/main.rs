@@ -2,6 +2,7 @@ mod routes;
 mod utils;
 use crate::routes::redirect;
 use axum::routing::get;
+use axum::routing::patch;
 use axum::routing::post;
 use axum::Router;
 use axum_prometheus::PrometheusMetricLayer;
@@ -38,8 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let app = Router::new()
         .route("/create", post(create_link))
-        .route("/update", post(update_link))
-        .route("/:id", get(redirect))
+        .route("/:id", patch(update_link).get(redirect))
         .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/health", get(health))
         .layer(TraceLayer::new_for_http())
