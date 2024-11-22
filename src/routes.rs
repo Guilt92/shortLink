@@ -1,6 +1,11 @@
+use std::future::poll_fn;
+
 use axum::body::Body;
 use axum::extract::Path;
 use axum::extract::State;
+use axum::http::header;
+use axum::http::header::REFERER;
+use axum::http::HeaderMap;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -9,6 +14,7 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use rand::Rng;
 use sha3::digest::Update;
+use sqlx::error;
 use sqlx::PgPool;
 use url::Url;
 
@@ -52,6 +58,7 @@ pub async fn health() -> impl IntoResponse {
 pub async fn redirect(
     State(pool): State<PgPool>,
     Path(requested_link): Path<String>,
+    headers: HeaderMap,
 ) -> Result<Response, (StatusCode, String)> {
     let select_timeout = tokio::time::Duration::from_millis(300);
 
@@ -76,6 +83,41 @@ pub async fn redirect(
         link.target_url
     );
 
+    let referer_header = headers
+        .get("referer")
+        .map(|value| value.to_str().unwrap_or_default().to_string());
+
+    let user_agent_header = headers
+        .get("user-agent")
+        .map(|value| value.to_str().unwrap_or_default().to_string());
+
+    let insert_statistic_timeout = tokio::time::Duration::from_millis(300);
+
+    let save_statistic = tokio::time::timeout(
+        insert_statistic_timeout,
+        sqlx::query_as!(
+            r#"
+                insert into link_statistics (link_id , referer , user_agent)
+                values ($1,$2,$3)
+                  "#,
+        )
+        .bind(&requested_link)
+        .bind(&referer_header)
+        .bind(&user_agent_header)
+        .execute(&pool),
+    )
+    .await;
+
+    match save_statistic {
+        Err(time) => tracing::error!("link timeout statistic: {}", time),
+        Ok(Err(err)) => tracing::error!("saving a new link click failed : {}", err),
+        _ => tracing::debug!(
+            "Persisted new link click for link with id {}, referer {}, and user_agent {}",
+            requested_link,
+            referer_header.unwrap_or_default(),
+            user_agent_header.unwrap_or_default()
+        ),
+    };
     Ok(Response::builder()
         .status(StatusCode::TEMPORARY_REDIRECT)
         .header("Cache-Control", DEFAULT_CACHE_CONTROL_HEADER_VALUE)
@@ -141,19 +183,16 @@ pub async fn create_link(
     ))
 }
 
-
-
 pub async fn update_link(
     State(pool): State<PgPool>,
     Path(link_id): Path<String>,
-    Json(update_link) : Json<LinkTarget>,
-)-> Result< Json<Link> , ( StatusCode ,  String)>{
+    Json(update_link): Json<LinkTarget>,
+) -> Result<Json<Link>, (StatusCode, String)> {
     let url = Url::parse(&update_link.target_url)
-    .map_err(|_| (StatusCode::CONFLICT, "url malformed".into()))?
-    .to_string();
+        .map_err(|_| (StatusCode::CONFLICT, "url malformed".into()))?
+        .to_string();
 
-
-    let update_link_timeout=tokio::time::Duration::from_millis(300);
+    let update_link_timeout = tokio::time::Duration::from_millis(300);
 
     let link = tokio::time::timeout(
         update_link_timeout,
@@ -176,7 +215,31 @@ pub async fn update_link(
     .map_err(internal_error)?
     .map_err(internal_error)?;
 
-
-    tracing::debug!("updating link with id {} , not targting {} " ,  link_id , url);
+    tracing::debug!("updating link with id {} , not targting {} ", link_id, url);
     Ok(Json(link))
+}
+
+pub async fn get_link_statistic(
+    State(pool): State<PgPool>,
+    Path(link_id): Path<String>,
+) -> Result<Json<Vec<CountedLinkStatistic>>, (StatusCode, String)> {
+    let fetch_statistics_timeout = tokio::time::Duration::from_millis(300);
+    let statistics=tokio::time::timeout(fetch_statistics_timeout, 
+    
+        sqlx::query_as!(
+
+            CountedLinkStatistic,
+            r#"
+            select count(*) as amount, referer, user_agent from link_statistics group by link_id, referer, user_agent having link_id = $1
+            "#,
+            &link_id
+        )
+        .fetch_one(&pool)
+    )
+    .await 
+    .map_err(internal_error)?
+    .map_err(internal_error)?;
+
+    tracing::debug!("Statistics for link with id {} requested", link_id);
+    Ok(Json(statistics))
 }
