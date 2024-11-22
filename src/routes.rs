@@ -118,5 +118,5 @@ pub async fn create_link (
             new_link_id, 
             url
         );
-        Ok(Json(new_link));
-    }
+        Ok(Json(new_link)) 
+ }
