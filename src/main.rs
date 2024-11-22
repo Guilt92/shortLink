@@ -7,6 +7,7 @@ use axum::routing::post;
 use axum::Router;
 use axum_prometheus::PrometheusMetricLayer;
 use dotenvy::dotenv;
+use routes::get_link_statistic;
 use routes::update_link;
 use routes::{create_link, health};
 use sqlx::postgres::PgPoolOptions;
@@ -41,6 +42,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .route("/create", post(create_link))
         .route("/:id", patch(update_link).get(redirect))
         .route("/metrics", get(|| async move { metric_handle.render() }))
+        .route("/:id/statistics", get(get_link_statistic))
         .route("/health", get(health))
         .layer(TraceLayer::new_for_http())
         .layer(_prometheus_layer)
