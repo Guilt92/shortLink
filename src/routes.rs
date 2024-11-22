@@ -99,7 +99,7 @@ pub async fn create_link(
         let new_link = tokio::time::timeout(
             insert_link_timeout,
             sqlx::query_as!(
-                link,
+                Link,
                 r#"
                     with inserted_link as (
                     insert into link (id , target_url)
