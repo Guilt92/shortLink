@@ -3,13 +3,20 @@ use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::Error;
 use axum::Json;
+use axum_prometheus::metrics::counter;
 use base64::engine::general_purpose;
 use base64::Engine;
 use rand::Rng;
 use sqlx::PgPool;
 use url::Url;
 use crate::utils::internal_error;
+use sqlx::error::ErrorKind;
+
+
+
+
 
 const DEFAULT_CACHE_CONTROL_HEADER_VALUE: &str =
     "public, max-age=300, s-maxage=300, stale-while-revalidate=300, stale-if-error=300";
@@ -89,7 +96,7 @@ pub async fn create_link (
 
     let insert_link_timeout = tokio::time::Duration::from_millis(300);
 
-    for _ in 1.=3 {
+    for _ in 1..=3 {
         let new_link_id=generate_id();
 
         let new_link=tokio::time::timeout(insert_link_timeout, 
@@ -99,7 +106,7 @@ pub async fn create_link (
                 r#"
                     with inserted_link as (
                     insert into link (id , target_url)
-                    values ($1 , &2)
+                    values ($1 , $2)
                     returning id , target_url
                     )
                     select id , target_url from inserted_link              
@@ -110,13 +117,24 @@ pub async fn create_link (
             .fetch_one(&pool)
         )
         .await
-        .map_err(internal_error)?
-         .map_err(internal_error)?;
+        .map_err(internal_error)?;
 
-         tracing::debug!(
-            "Redirecting link id {} to {}",
-            new_link_id, 
-            url
-        );
-        Ok(Json(new_link)) 
- }
+
+         match new_link {
+            Ok(link) =>{
+            tracing::debug!("Created new link with id {}  targeting {}" , new_link_id , url);
+            return Ok(Json(link))
+         }
+         Err(err) => match err {
+            sqlx::Error(db_err) if db_err.kind() == ErrorKind::UniqueViolation => {}
+            _ => return Err(internal_error(err))
+         }
+        }
+    }
+    tracing::error!("Error in create link");
+    counter!("not uniq link create ");
+
+    Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal server error ".into()))
+
+}
+ 
