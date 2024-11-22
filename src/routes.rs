@@ -8,6 +8,7 @@ use axum_prometheus::metrics::counter;
 use base64::engine::general_purpose;
 use base64::Engine;
 use rand::Rng;
+use sha3::digest::Update;
 use sqlx::PgPool;
 use url::Url;
 
@@ -138,4 +139,44 @@ pub async fn create_link(
         StatusCode::INTERNAL_SERVER_ERROR,
         "Internal server error ".into(),
     ))
+}
+
+
+
+pub async fn update_link(
+    State(pool): State<PgPool>,
+    Path(link_id): Path<String>,
+    Json(update_link) : Json<LinkTarget>,
+)-> Result< Json<Link> , ( StatusCode ,  String)>{
+    let url = Url::parse(&update_link.target_url)
+    .map_err(|_| (StatusCode::CONFLICT, "url malformed".into()))?
+    .to_string();
+
+
+    let update_link_timeout=tokio::time::Duration::from_millis(300);
+
+    let link = tokio::time::timeout(update_link_timeout, 
+        sqlx::query_as!(
+
+            Link,
+            r#"
+                with update_link as {
+                update link set target_url =$1 where id = $2 
+                returning id , target_url 
+                }
+                select id , target_url 
+                from update_link 
+            "#,
+            &url,
+            &link_id
+        )
+        .fetch_once(&pool),
+    )
+    .await
+    .map_err(internal_error)?
+    .map_err(internal_error)?;
+
+
+    tracing::debug!("updating link with id {} , not targting {} " ,  link_id , url);
+    Ok(Json(link))
 }
