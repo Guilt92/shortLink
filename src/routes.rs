@@ -1,10 +1,6 @@
-use std::future::poll_fn;
-
 use axum::body::Body;
 use axum::extract::Path;
 use axum::extract::State;
-use axum::http::header;
-use axum::http::header::REFERER;
 use axum::http::HeaderMap;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -13,8 +9,6 @@ use axum_prometheus::metrics::counter;
 use base64::engine::general_purpose;
 use base64::Engine;
 use rand::Rng;
-use sha3::digest::Update;
-use sqlx::error;
 use sqlx::PgPool;
 use url::Url;
 
