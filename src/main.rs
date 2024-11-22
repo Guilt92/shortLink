@@ -1,20 +1,17 @@
 mod routes;
 mod utils;
-use std::env;
-use sqlx::PgPool;
-use axum::Router;
-use dotenvy::dotenv;
-use std::error::Error;
+use crate::routes::redirect;
 use axum::routing::get;
 use axum::routing::post;
-use crate::routes::redirect;
+use axum::Router;
+use axum_prometheus::PrometheusMetricLayer;
+use dotenvy::dotenv;
 use routes::{create_link, health};
 use sqlx::postgres::PgPoolOptions;
+use std::error::Error;
 use tower_http::trace::TraceLayer;
-use axum_prometheus::lifecycle::layer;
-use axum_prometheus::PrometheusMetricLayer;
-use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -39,15 +36,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (_prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app = Router::new()
-    .route("/create_link", post(create_link))
+        .route("/create_link", post(create_link))
         .route("/:id", get(redirect))
         .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/health", get(health))
         .layer(TraceLayer::new_for_http())
         .layer(_prometheus_layer)
         .with_state(_db);
-
-
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await

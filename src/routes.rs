@@ -1,20 +1,19 @@
-use url::Url;
-use rand::Rng;
-use axum::Json;
-use sqlx::PgPool;
 use axum::body::Body;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-
+use axum::Json;
 use axum_prometheus::metrics::counter;
 use base64::engine::general_purpose;
 use base64::Engine;
+use rand::Rng;
+use sqlx::PgPool;
+use url::Url;
 
 use crate::utils::internal_error;
-use sqlx::Error as SqlxError;
 use sqlx::error::ErrorKind;
+use sqlx::Error as SqlxError;
 
 const DEFAULT_CACHE_CONTROL_HEADER_VALUE: &str =
     "public, max-age=300, s-maxage=300, stale-while-revalidate=300, stale-if-error=300";
@@ -72,7 +71,7 @@ pub async fn redirect(
 
     tracing::debug!(
         "Redirecting link id {} to {}",
-        requested_link, 
+        requested_link,
         link.target_url
     );
 
@@ -84,21 +83,21 @@ pub async fn redirect(
         .expect("This response should always be constructable"))
 }
 
-pub async fn create_link (
-    State(pool) : State<PgPool>,
+pub async fn create_link(
+    State(pool): State<PgPool>,
     Json(new_link): Json<LinkTarget>,
- ) -> Result<Json<Link> , (StatusCode, String)>{
-
-    let url = Url::parse(&new_link.target_url).map_err(|_| (StatusCode::CONFLICT ,  "url malformed ".into()))?.to_string();
-
+) -> Result<Json<Link>, (StatusCode, String)> {
+    let url = Url::parse(&new_link.target_url)
+        .map_err(|_| (StatusCode::CONFLICT, "url malformed ".into()))?
+        .to_string();
 
     let insert_link_timeout = tokio::time::Duration::from_millis(300);
 
     for _ in 1..=3 {
-        let new_link_id=generate_id();
+        let new_link_id = generate_id();
 
-        let new_link=tokio::time::timeout(insert_link_timeout, 
-            
+        let new_link = tokio::time::timeout(
+            insert_link_timeout,
             sqlx::query_as!(
                 link,
                 r#"
@@ -112,27 +111,31 @@ pub async fn create_link (
                 &new_link_id,
                 &url
             )
-            .fetch_one(&pool)
+            .fetch_one(&pool),
         )
         .await
         .map_err(internal_error)?;
 
-
-         match new_link {
-            Ok(link) =>{
-            tracing::debug!("Created new link with id {}  targeting {}" , new_link_id , url);
-            return Ok(Json(link))
-         }
-         Err(err) => match err {
-            SqlxError::Database(db_err) if db_err.kind() == ErrorKind::UniqueViolation => {}
-            _ => return Err(internal_error(err))
-         }
+        match new_link {
+            Ok(link) => {
+                tracing::debug!(
+                    "Created new link with id {}  targeting {}",
+                    new_link_id,
+                    url
+                );
+                return Ok(Json(link));
+            }
+            Err(err) => match err {
+                SqlxError::Database(db_err) if db_err.kind() == ErrorKind::UniqueViolation => {}
+                _ => return Err(internal_error(err)),
+            },
         }
     }
     tracing::error!("Error in create link");
     counter!("not uniq link create ");
 
-    Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal server error ".into()))
-
+    Err((
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "Internal server error ".into(),
+    ))
 }
- 
