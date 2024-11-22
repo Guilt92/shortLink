@@ -87,22 +87,22 @@ pub async fn redirect(
 
     let insert_statistic_timeout = tokio::time::Duration::from_millis(300);
 
-    let save_statistic = tokio::time::timeout(
+    let saved_statistic = tokio::time::timeout(
         insert_statistic_timeout,
-        sqlx::query_as!(
+        sqlx::query(
             r#"
-                insert into link_statistics (link_id , referer , user_agent)
-                values ($1,$2,$3)
-                  "#,
+                insert into link_statistics(link_id, referer, user_agent)
+                values($1, $2, $3)
+                "#,
         )
-        .bind(&requested_link)
-        .bind(&referer_header)
-        .bind(&user_agent_header)
-        .execute(&pool),
+            .bind(&requested_link)
+            .bind(&referer_header)
+            .bind(&user_agent_header)
+            .execute(&pool),
     )
     .await;
 
-    match save_statistic {
+    match saved_statistic {
         Err(time) => tracing::error!("link timeout statistic: {}", time),
         Ok(Err(err)) => tracing::error!("saving a new link click failed : {}", err),
         _ => tracing::debug!(
