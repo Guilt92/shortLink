@@ -1,22 +1,20 @@
+use url::Url;
+use rand::Rng;
+use axum::Json;
+use sqlx::PgPool;
 use axum::body::Body;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Error;
-use axum::Json;
+
 use axum_prometheus::metrics::counter;
 use base64::engine::general_purpose;
 use base64::Engine;
-use rand::Rng;
-use sqlx::PgPool;
-use url::Url;
+
 use crate::utils::internal_error;
+use sqlx::Error as SqlxError;
 use sqlx::error::ErrorKind;
-
-
-
-
 
 const DEFAULT_CACHE_CONTROL_HEADER_VALUE: &str =
     "public, max-age=300, s-maxage=300, stale-while-revalidate=300, stale-if-error=300";
@@ -126,7 +124,7 @@ pub async fn create_link (
             return Ok(Json(link))
          }
          Err(err) => match err {
-            sqlx::Error(db_err) if db_err.kind() == ErrorKind::UniqueViolation => {}
+            SqlxError::Database(db_err) if db_err.kind() == ErrorKind::UniqueViolation => {}
             _ => return Err(internal_error(err))
          }
         }

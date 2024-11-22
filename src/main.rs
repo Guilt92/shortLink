@@ -1,19 +1,20 @@
 mod routes;
 mod utils;
-use axum::routing::get;
-use axum::Router;
-use axum_prometheus::lifecycle::layer;
-use axum_prometheus::PrometheusMetricLayer;
-use dotenvy::dotenv;
-use axum::routing::post;
-use routes::{create_link, health};
-use sqlx::postgres::PgPoolOptions;
-use std::error::Error;
-use tower_http::trace::TraceLayer;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
 use std::env;
 use sqlx::PgPool;
+use axum::Router;
+use dotenvy::dotenv;
+use std::error::Error;
+use axum::routing::get;
+use axum::routing::post;
+use crate::routes::redirect;
+use routes::{create_link, health};
+use sqlx::postgres::PgPoolOptions;
+use tower_http::trace::TraceLayer;
+use axum_prometheus::lifecycle::layer;
+use axum_prometheus::PrometheusMetricLayer;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
