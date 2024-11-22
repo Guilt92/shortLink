@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (_prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app = Router::new()
-        .route("/create_link", post(create_link))
+        .route("/create", post(create_link))
         .route("/:id", get(redirect))
         .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/health", get(health))
