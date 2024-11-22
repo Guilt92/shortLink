@@ -217,7 +217,11 @@ pub async fn get_link_statistic(
     State(pool): State<PgPool>,
     Path(link_id): Path<String>,
 ) -> Result<Json<Vec<CountedLinkStatistic>>, (StatusCode, String)> {
+
+
     let fetch_statistics_timeout = tokio::time::Duration::from_millis(300);
+
+
     let statistics=tokio::time::timeout(fetch_statistics_timeout, 
     
         sqlx::query_as!(
@@ -228,7 +232,7 @@ pub async fn get_link_statistic(
             "#,
             &link_id
         )
-        .fetch_one(&pool)
+        .fetch_all(&pool)
     )
     .await 
     .map_err(internal_error)?
