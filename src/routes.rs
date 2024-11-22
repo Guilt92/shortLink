@@ -155,22 +155,22 @@ pub async fn update_link(
 
     let update_link_timeout=tokio::time::Duration::from_millis(300);
 
-    let link = tokio::time::timeout(update_link_timeout, 
+    let link = tokio::time::timeout(
+        update_link_timeout,
         sqlx::query_as!(
-
             Link,
             r#"
-                with update_link as {
-                update link set target_url =$1 where id = $2 
-                returning id , target_url 
-                }
-                select id , target_url 
-                from update_link 
+            with updated_link as (
+                update link set target_url = $1 where id = $2
+                returning id, target_url
+            )
+            select id, target_url
+            from updated_link
             "#,
             &url,
             &link_id
         )
-        .fetch_once(&pool),
+        .fetch_one(&pool),
     )
     .await
     .map_err(internal_error)?
