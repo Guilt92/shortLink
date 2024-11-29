@@ -25,7 +25,7 @@ pub  async fn auth(
 
     let api_key = req.headers().get("x-api-key").map(|value| value.to_str().unwrap_or_default()).ok_or_else(|| {
         tracing::error!("Unauthroized call to API: No key header received");
-        counter!("unauthenticated_calls_count", &labels);
+        counter!("unauthenticated_call_count", &labels);
         (StatusCode::UNAUTHORIZED , "UNAUTHORIZED".into())
     })?;
 
@@ -34,7 +34,7 @@ pub  async fn auth(
     let setting= tokio::time::timeout(fetch_setting_timeout, 
         sqlx::query_as!(
             Setting,
-            "select id , encrypt_global_api_key from setting where id =$1",
+            "select id , encrypted_global_api_key from setting where id =$1",
             "DEFAULT_SETTING"
         )
         .fetch_one(&pool)
@@ -49,13 +49,11 @@ pub  async fn auth(
     let provided_api_key = hasher.finalize();
 
 
-    let setting.encrypted_global_api_key = != format!("{provided_api_key:x}"){
+    if setting.encrypted_global_api_key  != format!("{provided_api_key:x}") {
         tracing::error!("Unauthorized call to API: Incorrect key supplied");
         counter!("unauthenticated_call_count" , &labels);
+        return Err ((StatusCode::UNAUTHORIZED , "Unauthorized".into()));
     }
-
-    return Err ((StatusCode::UNAUTHORIZED , "Unauthorized".into()));
-
 
     Ok((next.run(req).await))
 }
