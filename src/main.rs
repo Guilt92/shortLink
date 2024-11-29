@@ -64,7 +64,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .local_addr()
             .expect("Could Not Connect to local_addr ")
     );
-
     axum::serve(listener, app)
         .await
         .expect("Could Not TO Serve Create Axum");
