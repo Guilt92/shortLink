@@ -18,7 +18,7 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use crate::auth::auth;
-
+use yew::prelude::*;
 
 
 #[tokio::main]
@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let app = Router::new()
         .route("/create", post(create_link))
         .route("/:id/statistics", get(get_link_statistic))
-        .route_layer(middleware::from_fn_with_state(db.clone().auth))
+        .route_layer(middleware::from_fn_with_state(db.clone(),auth))
         .route("/:id", patch(update_link).route_layer(middleware::from_fn_with_state(db.clone(),auth)).get(redirect))
         .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/health", get(health))
