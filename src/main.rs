@@ -1,5 +1,6 @@
 mod routes;
 mod utils;
+mod auth;
 use crate::routes::redirect;
 use axum::routing::get;
 use axum::routing::patch;
