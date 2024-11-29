@@ -1,11 +1,12 @@
 mod routes;
 mod utils;
 mod auth;
+use axum::Router;
+use axum::middleware;
 use crate::routes::redirect;
 use axum::routing::get;
 use axum::routing::patch;
 use axum::routing::post;
-use axum::Router;
 use axum_prometheus::PrometheusMetricLayer;
 use dotenvy::dotenv;
 use routes::get_link_statistic;
@@ -16,6 +17,9 @@ use std::error::Error;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use crate::auth::auth;
+
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -32,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let db_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL is a required environment variable");
 
-    let _db = PgPoolOptions::new()
+    let db = PgPoolOptions::new()
         .max_connections(20)
         .connect(&db_url)
         .await?;
@@ -41,13 +45,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let app = Router::new()
         .route("/create", post(create_link))
-        .route("/:id", patch(update_link).get(redirect))
-        .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/:id/statistics", get(get_link_statistic))
+        .route_layer(middleware::from_fn_with_state(db.clone().auth))
+        .route("/:id", patch(update_link).route_layer(middleware::from_fn_with_state(db.clone(),auth)).get(redirect))
+        .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/health", get(health))
         .layer(TraceLayer::new_for_http())
         .layer(_prometheus_layer)
-        .with_state(_db);
+        .with_state(db);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
