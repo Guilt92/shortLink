@@ -1,12 +1,13 @@
+mod auth;
 mod routes;
 mod utils;
-mod auth;
-use axum::Router;
-use axum::middleware;
+use crate::auth::auth;
 use crate::routes::redirect;
+use axum::middleware;
 use axum::routing::get;
 use axum::routing::patch;
 use axum::routing::post;
+use axum::Router;
 use axum_prometheus::PrometheusMetricLayer;
 use dotenvy::dotenv;
 use routes::get_link_statistic;
@@ -17,7 +18,6 @@ use std::error::Error;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use crate::auth::auth;
 use yew::prelude::*;
 
 
@@ -46,8 +46,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let app = Router::new()
         .route("/create", post(create_link))
         .route("/:id/statistics", get(get_link_statistic))
-        .route_layer(middleware::from_fn_with_state(db.clone(),auth))
-        .route("/:id", patch(update_link).route_layer(middleware::from_fn_with_state(db.clone(),auth)).get(redirect))
+        .route_layer(middleware::from_fn_with_state(db.clone(), auth))
+        .route(
+            "/:id",
+            patch(update_link)
+                .route_layer(middleware::from_fn_with_state(db.clone(), auth))
+                .get(redirect),
+        )
         .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/health", get(health))
         .layer(TraceLayer::new_for_http())

@@ -95,10 +95,10 @@ pub async fn redirect(
                 values($1, $2, $3)
                 "#,
         )
-            .bind(&requested_link)
-            .bind(&referer_header)
-            .bind(&user_agent_header)
-            .execute(&pool),
+        .bind(&requested_link)
+        .bind(&referer_header)
+        .bind(&user_agent_header)
+        .execute(&pool),
     )
     .await;
 
@@ -217,10 +217,7 @@ pub async fn get_link_statistic(
     State(pool): State<PgPool>,
     Path(link_id): Path<String>,
 ) -> Result<Json<Vec<CountedLinkStatistic>>, (StatusCode, String)> {
-
-
     let fetch_statistics_timeout = tokio::time::Duration::from_millis(300);
-
 
     let statistics=tokio::time::timeout(fetch_statistics_timeout, 
     
