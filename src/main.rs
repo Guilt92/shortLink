@@ -18,8 +18,8 @@ use std::error::Error;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use yew::prelude::*;
-
+use maud::Markup;
+use axum::response::Html;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -44,6 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (_prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app = Router::new()
+        .route("/" , get(root))
         .route("/create", post(create_link))
         .route("/:id/statistics", get(get_link_statistic))
         .route_layer(middleware::from_fn_with_state(db.clone(), auth))
@@ -74,4 +75,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .expect("Could Not TO Serve Create Axum");
 
     Ok(())
+}
+
+
+async fn root() -> Html<String>{
+    outer_template(maud::html!{
+        h3 class="text-4xl mb-4 font-bold animate-pulse" { "OuTiS92" }
+    })
+}
+
+fn outer_template(body: Markup) -> Html<String> {
+    Html(
+        maud::html! {
+            script src="https://cdn.tailwindcss.com/3.4.16" {}
+            body class="flex flex-col items-center justify-center h-screen bg-black text-white" {
+                (body)
+            }
+        }
+        .into_string(),
+    )
 }
