@@ -1,0 +1,9 @@
+[package]
+name = "website"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-files = "0.6.6"
+actix-web = "4.9.0"
+maud = { version = "*", features = ["actix-web"] }

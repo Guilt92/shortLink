@@ -4,12 +4,14 @@ mod utils;
 use crate::auth::auth;
 use crate::routes::redirect;
 use axum::middleware;
+use axum::response::Html;
 use axum::routing::get;
 use axum::routing::patch;
 use axum::routing::post;
 use axum::Router;
 use axum_prometheus::PrometheusMetricLayer;
 use dotenvy::dotenv;
+use maud::Markup;
 use routes::get_link_statistic;
 use routes::update_link;
 use routes::{create_link, health};
@@ -18,8 +20,6 @@ use std::error::Error;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use maud::Markup;
-use axum::response::Html;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (_prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app = Router::new()
-        .route("/" , get(root))
+        .route("/", get(root))
         .route("/create", post(create_link))
         .route("/:id/statistics", get(get_link_statistic))
         .route_layer(middleware::from_fn_with_state(db.clone(), auth))
@@ -77,9 +77,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-
-async fn root() -> Html<String>{
-    outer_template(maud::html!{
+async fn root() -> Html<String> {
+    outer_template(maud::html! {
         h3 class="text-4xl mb-4 font-bold animate-pulse" { "OuTiS92" }
     })
 }

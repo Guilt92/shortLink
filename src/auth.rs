@@ -55,5 +55,5 @@ pub async fn auth(
         return Err((StatusCode::UNAUTHORIZED, "Unauthorized".into()));
     }
 
-    Ok((next.run(req).await))
+    Ok(next.run(req).await)
 }
