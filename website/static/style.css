@@ -1,8 +1,55 @@
 * {
-    margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
+
+.email-box {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+input[type="text"] {
+    width: 250px;
+    padding: 12px;
+    border: 2px solid #555;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #222;
+    color: white;
+    outline: none;
+    transition: all 0.3s ease-in-out;
+    text-align: center;
+}
+
+input[type="text"]::placeholder {
+    color: #888;
+    font-style: italic;
+}
+
+input[type="text"]:focus {
+    border-color: #047988;
+    box-shadow: 0 0 8px rgba(0, 188, 212, 0.5);
+}
+
+button {
+    padding: 12px 18px;
+    border: none;
+    border-radius: 8px;
+    background: #046673;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+}
+
+button:hover {
+    background: #008c9e;
+    box-shadow: 0 0 10px rgba(0, 188, 212, 0.7);
+}
+
 
 body, html {
     height: 100%;
@@ -11,17 +58,9 @@ body, html {
     font-family: Arial, sans-serif;
 }
 
-#particles-js {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    z-index: -1;
-}
-
 .container {
     position: relative;
+    top: 20%;
     z-index: 1;
     text-align: center;
     padding: 20px;
@@ -40,3 +79,20 @@ body, html {
     text-decoration: none;
     margin: 0 10px;
 }
+
+
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+  
+  #particles-js {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background-color: #1d1d1d; 
+  }
+  
