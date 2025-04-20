@@ -11,14 +11,14 @@ async fn index() -> AwResult<Markup> {
                 meta charset="UTF-8";
                 meta name="viewport" content="width=device-width, initial-scale=1.0";
                 title { "Short Link Service" }
-                link rel="stylesheet" href="/static/style.css";     
+                link rel="stylesheet" href="/static/style.css";
                 script src="https://cdn.jsdelivr.net/npm/particles.js" {}
                 script defer src="/static/script.js" {}
-                
+
             }
-            
+
             body {
-                div id="particles-js" {}  
+                div id="particles-js" {}
                 div class="container" {
                     h1 { "ShortLink Generator" }
                     div class="email-box" {
@@ -33,12 +33,14 @@ async fn index() -> AwResult<Markup> {
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
+    println!(" Starting On Port 8080");
     HttpServer::new(|| {
         App::new()
             .service(index)
-            .service(Files::new("/static", "./static")) 
+            .service(Files::new("/static", "./static"))
     })
-    .bind(("0.0.0.0", 8080))? 
+    .bind(("0.0.0.0", 8080))?
     .run()
     .await
+
 }
