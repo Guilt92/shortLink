@@ -47,12 +47,36 @@ install_depend() {
 
 install_depend
 
+pull_images_with_retry() {
+    local retries=2
+    local count=0
+    local success=0
+    while [ $count -lt $retries ]; do
+        echo -e "${YELLOW}Attempting to pull Docker images (try $((count+1)))...${RESET}"
+        if docker-compose pull; then
+            echo -e "${GREEN}Docker images pulled successfully!${RESET}"
+            success=1
+            break
+        else
+            echo -e "${RED}Failed to pull Docker images.${RESET}"
+            ((count++))
+            sleep 2
+        fi
+    done
+
+    if [ $success -ne 1 ]; then
+        echo -e "${RED}Could not pull Docker images after $retries attempts. Exiting.${RESET}"
+        exit 1
+    fi
+}
+
 start_services() {
   sleep 1 
-  celar 
+  clear
   local dir
   dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   cd "$dir"
+  pull_images_with_retry
   echo -e "${YELLOW}Starting services...${RESET}"
   docker-compose up -d
 }
