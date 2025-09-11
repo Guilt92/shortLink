@@ -22,7 +22,6 @@ install_depend() {
     local packages=(
         docker
         docker.io
-        docker-ce
         docker-compose 
         docker-compose-plugin
     )
