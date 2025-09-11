@@ -102,6 +102,12 @@ show_status() {
   docker-compose ps
 }
 
+
+set_database_url() {
+    export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/shortlink"
+    echo -e "${GREEN}DATABASE_URL is set to $DATABASE_URL${RESET}"
+}
+
 main() {
   start_services
   wait_for_db
