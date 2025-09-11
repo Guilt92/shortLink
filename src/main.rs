@@ -1,25 +1,24 @@
 mod auth;
 mod routes;
 mod utils;
-use crate::auth::auth;
-use crate::routes::redirect;
-use axum::middleware;
-use axum::response::Html;
-use axum::routing::get;
-use axum::routing::patch;
-use axum::routing::post;
-use axum::Router;
+use crate::{
+    auth::auth,
+    routes::{create_link, get_link_statistic, health, redirect, update_link},
+};
+use axum::{
+    middleware,
+    response::Html,
+    routing::{get, patch, post},
+    Router,
+};
 use axum_prometheus::PrometheusMetricLayer;
-use dotenvy::dotenv;
-use maud::Markup;
-use routes::get_link_statistic;
-use routes::update_link;
-use routes::{create_link, health};
 use sqlx::postgres::PgPoolOptions;
-use std::error::Error;
 use tower_http::trace::TraceLayer;
-use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{prelude::*, util::SubscriberInitExt};
+use dotenvy::dotenv; 
+use maud::Markup;
+use std::error::Error;
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -37,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         std::env::var("DATABASE_URL").expect("DATABASE_URL is a required environment variable");
 
     let db = PgPoolOptions::new()
-        .max_connections(20)
+        .max_connections(200)
         .connect(&db_url)
         .await?;
 

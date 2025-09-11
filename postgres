@@ -6,11 +6,52 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RESET='\033[0m'
 
-check_docker_compose() {
-  command -v docker-compose >/dev/null
+
+check_root()
+{
+	if [ "$EUID" -ne 0 ];then 
+		echo -e "${RED}This script must be run as root. Please switch to the root user and try again.${RESET}"
+		exit 1
+	fi
 }
 
+check_root
+
+
+install_depend() {
+    local packages=(
+        docker
+        docker.io
+        docker-ce
+        docker-compose 
+        docker-compose-plugin
+    )
+
+    echo -e "${YELLOW}Checking and installing Docker components...${RESET}"
+
+    for pkg in "${packages[@]}"; do
+        echo -e "${YELLOW}Checking if $pkg is installed...${RESET}"
+
+        if ! dpkg -l | grep -qw "$pkg"; then
+            echo -e "${YELLOW}$pkg not found. Installing...${RESET}"
+            if ! apt-get install -y "$pkg"; then
+                echo -e "${RED}Failed to install $pkg. Exiting.${RESET}"
+                exit 1
+            fi
+            echo -e "${GREEN}$pkg installed successfully.${RESET}"
+        else
+            echo -e "${GREEN}$pkg is already installed.${RESET}"
+        fi
+    done
+
+    echo -e "${GREEN}All Docker components are installed and ready.${RESET}"
+}
+
+install_depend
+
 start_services() {
+  sleep 1 
+  celar 
   local dir
   dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   cd "$dir"
@@ -18,7 +59,10 @@ start_services() {
   docker-compose up -d
 }
 
+
 wait_for_db() {
+  sleep 1
+  clear 
   local retries=10
   echo -e "${YELLOW}Waiting for PostgreSQL to become ready...${RESET}"
   until docker exec "$(docker-compose ps -q db)" pg_isready -U postgres >/dev/null 2>&1; do
@@ -37,10 +81,6 @@ show_status() {
 }
 
 main() {
-  if ! check_docker_compose; then
-    echo -e "${RED}Error: docker-compose not found${RESET}"
-    exit 1
-  fi
   start_services
   wait_for_db
   show_status
