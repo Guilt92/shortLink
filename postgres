@@ -23,7 +23,6 @@ install_depend() {
         docker
         docker.io
         docker-compose 
-        docker-compose-plugin
     )
 
     echo -e "${YELLOW}Checking and installing Docker components...${RESET}"
