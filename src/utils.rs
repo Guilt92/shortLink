@@ -7,9 +7,7 @@ where
 {
     tracing::error!("{}", err);
 
-    //  let  labels = [("error", format!("{}!", err))];
-
-    let _ = counter!("request_error", "error" => format!("{}!", err));
+    counter!("request_error", "error" => format!("{}!", err));
 
     (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
 }

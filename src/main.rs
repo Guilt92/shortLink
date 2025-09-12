@@ -1,10 +1,17 @@
 mod auth;
 mod routes;
 mod utils;
-use crate::{
-    auth::auth,
-    routes::{create_link, get_link_statistic, health, redirect, update_link},
-};
+
+// use crate::{
+//      auth::auth,
+//     routes::{create_link, get_link_statistic, health, redirect, update_link},
+// };
+
+mod frontend {
+    use axum::response::Html;
+}
+
+use crate::routes::{create_link, health, redirect};
 use axum::{
     middleware,
     response::Html,
@@ -12,13 +19,14 @@ use axum::{
     Router,
 };
 use axum_prometheus::PrometheusMetricLayer;
+use dotenvy::dotenv;
+use maud::html;
+use maud::Markup;
 use sqlx::postgres::PgPoolOptions;
+use std::error::Error;
+use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{prelude::*, util::SubscriberInitExt};
-use dotenvy::dotenv; 
-use maud::Markup;
-use std::error::Error;
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -40,23 +48,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .connect(&db_url)
         .await?;
 
-    let (_prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+    // let (_prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app = Router::new()
-        .route("/", get(root))
+        .route("/", get(index))
+        .nest_service("/static", ServeDir::new("./website/static"))
         .route("/create", post(create_link))
-        .route("/:id/statistics", get(get_link_statistic))
-        .route_layer(middleware::from_fn_with_state(db.clone(), auth))
-        .route(
-            "/:id",
-            patch(update_link)
-                .route_layer(middleware::from_fn_with_state(db.clone(), auth))
-                .get(redirect),
-        )
-        .route("/metrics", get(|| async move { metric_handle.render() }))
+        .route("/:id", get(redirect))
+        // .route("/:id/statistics", get(get_link_statistic))
+        // .route_layer(middleware::from_fn_with_state(db.clone(), auth))
+        // .route(
+        //     "/:id",
+        //     patch(update_link)
+        //         .route_layer(middleware::from_fn_with_state(db.clone(), auth))
+        //         .get(redirect),
+        // )
+        // .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/health", get(health))
         .layer(TraceLayer::new_for_http())
-        .layer(_prometheus_layer)
+        // .layer(_prometheus_layer)
         .with_state(db);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
@@ -76,18 +86,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn root() -> Html<String> {
-    outer_template(maud::html! {
-        h3 class="text-4xl mb-4 font-bold animate-pulse" { "OuTiS92" }
-    })
-}
-
-fn outer_template(body: Markup) -> Html<String> {
+pub async fn index() -> Html<String> {
     Html(
-        maud::html! {
-            script src="https://cdn.tailwindcss.com/3.4.16" {}
-            body class="flex flex-col items-center justify-center h-screen bg-black text-white" {
-                (body)
+        html! {
+            html lang="en" {
+                head {
+                    meta charset="UTF-8";
+                    meta name="viewport" content="width=device-width, initial-scale=1.0";
+                    title { "Short Link Service" }
+                    link rel="stylesheet" href="/static/style.css";
+                    script src="https://cdn.jsdelivr.net/npm/particles.js" {}
+                    script defer src="/static/script.js" {}
+                }
+                body {
+                    div id="particles-js" {}
+                    div class="container" {
+                        h1 { "ShortLink Generator" }
+                        div class="email-box" {
+                            input type="text" placeholder=" Enter your URL";
+                            button { "Go" }
+                        }
+                    }
+                }
             }
         }
         .into_string(),
