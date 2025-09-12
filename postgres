@@ -108,10 +108,31 @@ set_database_url() {
     echo -e "${GREEN}DATABASE_URL is set to $DATABASE_URL${RESET}"
 }
 
+ensure_database_exists() {
+    local db_name="shortlink"
+    local container_name
+    container_name=$(docker-compose ps -q db)
+
+    if [ -z "$container_name" ]; then
+        echo -e "${RED}Database container is not running.${RESET}"
+        exit 1
+    fi
+
+     if docker exec "$container_name" psql -U postgres -lqt | cut -d \| -f 1 | grep -qw "$db_name"; then
+        echo -e "${GREEN}Database '$db_name' already exists.${RESET}"
+    else
+        echo -e "${YELLOW}Database '$db_name' does not exist. Creating...${RESET}"
+        docker exec -i "$container_name" psql -U postgres -c "CREATE DATABASE $db_name;"
+        echo -e "${GREEN}Database '$db_name' created successfully!${RESET}"
+    fi
+}
+
+
 main() {
   start_services
   wait_for_db
   show_status
+  set_database_url
 }
 
 main "$@"
