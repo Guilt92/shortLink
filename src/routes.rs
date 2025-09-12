@@ -213,28 +213,28 @@ pub async fn update_link(
     Ok(Json(link))
 }
 
-pub async fn get_link_statistic(
-    State(pool): State<PgPool>,
-    Path(link_id): Path<String>,
-) -> Result<Json<Vec<CountedLinkStatistic>>, (StatusCode, String)> {
-    let fetch_statistics_timeout = tokio::time::Duration::from_millis(300);
+// pub async fn get_link_statistic(
+//     State(pool): State<PgPool>,
+//     Path(link_id): Path<String>,
+// ) -> Result<Json<Vec<CountedLinkStatistic>>, (StatusCode, String)> {
+//     let fetch_statistics_timeout = tokio::time::Duration::from_millis(300);
 
-    let statistics=tokio::time::timeout(fetch_statistics_timeout, 
+//     let statistics=tokio::time::timeout(fetch_statistics_timeout, 
     
-        sqlx::query_as!(
+//         sqlx::query_as!(
 
-            CountedLinkStatistic,
-            r#"
-            select count(*) as amount, referer, user_agent from link_statistics group by link_id, referer, user_agent having link_id = $1
-            "#,
-            &link_id
-        )
-        .fetch_all(&pool)
-    )
-    .await 
-    .map_err(internal_error)?
-    .map_err(internal_error)?;
+//             CountedLinkStatistic,
+//             r#"
+//             select count(*) as amount, referer, user_agent from link_statistics group by link_id, referer, user_agent having link_id = $1
+//             "#,
+//             &link_id
+//         )
+//         .fetch_all(&pool)
+//     )
+//     .await 
+//     .map_err(internal_error)?
+//     .map_err(internal_error)?;
 
-    tracing::debug!("Statistics for link with id {} requested", link_id);
-    Ok(Json(statistics))
-}
+//     tracing::debug!("Statistics for link with id {} requested", link_id);
+//     Ok(Json(statistics))
+// }

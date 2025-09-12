@@ -1,15 +1,11 @@
 mod auth;
 mod routes;
 mod utils;
-
+mod frontend;
 // use crate::{
 //      auth::auth,
 //     routes::{create_link, get_link_statistic, health, redirect, update_link},
 // };
-
-mod frontend {
-    use axum::response::Html;
-}
 
 use crate::routes::{create_link, health, redirect};
 use axum::{
@@ -20,8 +16,6 @@ use axum::{
 };
 use axum_prometheus::PrometheusMetricLayer;
 use dotenvy::dotenv;
-use maud::html;
-use maud::Markup;
 use sqlx::postgres::PgPoolOptions;
 use std::error::Error;
 use tower_http::services::ServeDir;
@@ -51,7 +45,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // let (_prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app = Router::new()
-        .route("/", get(index))
+        .route("/", get(frontend::index))
         .nest_service("/static", ServeDir::new("./website/static"))
         .route("/create", post(create_link))
         .route("/:id", get(redirect))
@@ -84,32 +78,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .expect("Could Not TO Serve Create Axum");
 
     Ok(())
-}
-
-pub async fn index() -> Html<String> {
-    Html(
-        html! {
-            html lang="en" {
-                head {
-                    meta charset="UTF-8";
-                    meta name="viewport" content="width=device-width, initial-scale=1.0";
-                    title { "Short Link Service" }
-                    link rel="stylesheet" href="/static/style.css";
-                    script src="https://cdn.jsdelivr.net/npm/particles.js" {}
-                    script defer src="/static/script.js" {}
-                }
-                body {
-                    div id="particles-js" {}
-                    div class="container" {
-                        h1 { "ShortLink Generator" }
-                        div class="email-box" {
-                            input type="text" placeholder=" Enter your URL";
-                            button { "Go" }
-                        }
-                    }
-                }
-            }
-        }
-        .into_string(),
-    )
 }
