@@ -16,7 +16,7 @@ pub async fn index() -> Html<String> {
                 body {
                     div id="particles-js" {}
                     div class="container" {
-                        h1 { "ShortLink Generator" }
+                        h1 class="title" { "ShortLink Generator" }
                         div class="email-box" {
                             input type="text" placeholder=" Enter your URL";
                             button { "Go" }

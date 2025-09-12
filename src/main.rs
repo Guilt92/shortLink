@@ -1,7 +1,7 @@
 mod auth;
+mod frontend;
 mod routes;
 mod utils;
-mod frontend;
 // use crate::{
 //      auth::auth,
 //     routes::{create_link, get_link_statistic, health, redirect, update_link},

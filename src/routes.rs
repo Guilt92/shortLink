@@ -219,8 +219,8 @@ pub async fn update_link(
 // ) -> Result<Json<Vec<CountedLinkStatistic>>, (StatusCode, String)> {
 //     let fetch_statistics_timeout = tokio::time::Duration::from_millis(300);
 
-//     let statistics=tokio::time::timeout(fetch_statistics_timeout, 
-    
+//     let statistics=tokio::time::timeout(fetch_statistics_timeout,
+
 //         sqlx::query_as!(
 
 //             CountedLinkStatistic,
@@ -231,7 +231,7 @@ pub async fn update_link(
 //         )
 //         .fetch_all(&pool)
 //     )
-//     .await 
+//     .await
 //     .map_err(internal_error)?
 //     .map_err(internal_error)?;
 
