@@ -1,35 +1,44 @@
-document.addEventListener("DOMContentLoaded", function() {
-    setTimeout(function() {
-        let particlesDiv = document.getElementById("particles-js");
-        if (!particlesDiv) {
-            console.error("⚠️ Element #particles-js not found!");
-            return;
-        }
-        
-        if (typeof particlesJS !== "undefined") {
-            particlesJS("particles-js", {
-                particles: {
-                    number: { value: 10, density: { enable: true, value_area: 70 }},
-                    color: { value: '#ff0000' },
-                    shape: { type: 'circle' },
-                    opacity: { value: 1, random: true },
-                    size: { value: 3, random: true },
-                    line_linked: { enable: true, distance: 150, color: '#ffffff', opacity: 0.4, width: 0.9 },
-                    move: { enable: true, speed: 0.2 }
-                },
-                interactivity: {
-                    events: {
-                        onhover: { enable: false , mode: 'repulse' },  
-                        onclick: { enable: false }
-                    },
-                    modes: {
-                        repulse: { distance: 50, duration: 0.2}, 
-                    }
-                },
-                retina_detect: true
-            });
-        } else {
-            console.error("particlesJS is not defined!");
-        }
-    }, 500);
-});
+(function () {
+  const form = document.getElementById("shorten-form");
+  if (!form) return;
+  const input = document.getElementById("url");
+  const btn = document.getElementById("go");
+  const err = document.getElementById("error");
+  const result = document.getElementById("result");
+  const short = document.getElementById("short");
+  const copy = document.getElementById("copy");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    err.hidden = true;
+    result.hidden = true;
+    btn.disabled = true;
+    try {
+      const res = await fetch("/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUrl: input.value.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Something went wrong");
+      short.textContent = data.shortUrl;
+      short.href = data.shortUrl;
+      result.hidden = false;
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(short.textContent);
+      copy.textContent = "Copied";
+      setTimeout(() => (copy.textContent = "Copy"), 1500);
+    } catch (_) {
+      copy.textContent = "Press Ctrl+C";
+    }
+  });
+})();
