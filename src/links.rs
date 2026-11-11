@@ -311,3 +311,24 @@ pub async fn overview(State(state): State<AppState>, user: AuthUser, ApiQuery(q)
         "recentLinks": recent.items,
     })))
 }
+
+/// Account-wide analytics (all of the user's links).
+pub async fn account_analytics(State(state): State<AppState>, user: AuthUser, ApiQuery(q): ApiQuery<StatsQuery>) -> ApiResult<Json<serde_json::Value>> {
+    let days = stats::clamp_days(q.days);
+    let scope = Scope { user_id: Some(user.id), code: None };
+    let (clicks, visitors) = stats::window_totals(&state.db, &scope, days as i32, 0).await?;
+    let (pclicks, _) = stats::window_totals(&state.db, &scope, (days * 2) as i32, days as i32).await?;
+    let top: Vec<(String, String, i64)> = sqlx::query_as(
+        "select l.id, l.target_url, count(*)::bigint from link_statistics s join link l on l.id = s.link_id
+         where l.user_id = $2 and s.created_at >= now() - make_interval(days => $1) group by l.id, l.target_url order by 3 desc, 1 limit 10")
+        .bind(days as i32).bind(user.id).fetch_all(&state.db).await?;
+    Ok(Json(json!({
+        "days": days, "clicks": clicks, "previousClicks": pclicks, "uniqueVisitors": visitors,
+        "series": stats::series(&state.db, &scope, days, stats::gran(&q.granularity)).await?,
+        "topLinks": top.into_iter().map(|(c, t, n)| json!({"code": c, "targetUrl": t, "clicks": n})).collect::<Vec<_>>(),
+        "referrers": stats::breakdown(&state.db, &scope, days, "referer").await?,
+        "devices": stats::breakdown(&state.db, &scope, days, "device").await?,
+        "browsers": stats::breakdown(&state.db, &scope, days, "browser").await?,
+        "operatingSystems": stats::breakdown(&state.db, &scope, days, "os").await?,
+    })))
+}

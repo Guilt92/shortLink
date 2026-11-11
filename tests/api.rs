@@ -363,6 +363,11 @@ async fn domains_and_overview(pool: PgPool) {
     assert_eq!(s, StatusCode::OK);
     assert_eq!((o["totalLinks"].as_i64().unwrap(), o["activeLinks"].as_i64().unwrap()), (1, 1));
     assert_eq!(o["recentLinks"].as_array().unwrap().len(), 1);
+    let (s, a) = t.get("/api/stats/analytics?days=7", Some(&c)).await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(a["clicks"], 0);
+    assert_eq!(a["series"].as_array().unwrap().len(), 8);
+    assert_eq!(t.get("/api/stats/analytics", None).await.0, StatusCode::UNAUTHORIZED);
     assert_eq!(t.del(&format!("/api/domains/{did}"), Some(&c)).await, StatusCode::NO_CONTENT);
     let (_, l) = t.get("/api/links/on-domain", Some(&c)).await;
     assert!(l["domain"].is_null());

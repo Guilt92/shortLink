@@ -60,6 +60,7 @@ pub fn build_app(state: AppState) -> Router {
         .route("/me/password", post(auth::change_password))
         .route("/reports", post(public::report))
         .route("/stats/overview", get(links::overview))
+        .route("/stats/analytics", get(links::account_analytics))
         .route("/links", get(links::list).post(links::create))
         .route("/links/bulk", post(links::bulk))
         .route("/links/:code", get(links::get).patch(links::update).delete(links::delete))
