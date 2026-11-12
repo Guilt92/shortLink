@@ -16,6 +16,7 @@ pub enum ApiError {
     Conflict(String),
     Gone,
     TooMany,
+    TooLarge,
     /// A dependency (the database) is temporarily unreachable; clients may retry.
     Unavailable,
     Internal,
@@ -43,6 +44,7 @@ impl IntoResponse for ApiError {
             ApiError::Conflict(m) => (StatusCode::CONFLICT, m),
             ApiError::Gone => (StatusCode::GONE, "This link is no longer available".into()),
             ApiError::TooMany => (StatusCode::TOO_MANY_REQUESTS, "Too many requests, please try again later".into()),
+            ApiError::TooLarge => (StatusCode::PAYLOAD_TOO_LARGE, "Request body is too large".into()),
             ApiError::Unavailable => (StatusCode::SERVICE_UNAVAILABLE, "Service temporarily unavailable, please retry".into()),
             ApiError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".into()),
         };
@@ -55,6 +57,10 @@ impl From<sqlx::Error> for ApiError {
         // Never leak database details to clients.
         tracing::error!("database error: {e}");
         match e {
+            // Input Postgres cannot store (NUL bytes, invalid UTF-8/representation) is a client error.
+            sqlx::Error::Database(ref d) if matches!(d.code().as_deref(), Some("22021") | Some("22P05") | Some("22P02")) => {
+                ApiError::BadRequest("The request contains invalid characters".into())
+            }
             sqlx::Error::PoolTimedOut | sqlx::Error::PoolClosed | sqlx::Error::Io(_) => ApiError::Unavailable,
             _ => ApiError::Internal,
         }
@@ -63,6 +69,9 @@ impl From<sqlx::Error> for ApiError {
 
 impl From<JsonRejection> for ApiError {
     fn from(r: JsonRejection) -> Self {
+        if r.status() == StatusCode::PAYLOAD_TOO_LARGE {
+            return ApiError::TooLarge;
+        }
         ApiError::BadRequest(format!("Invalid request body: {}", r.status().canonical_reason().unwrap_or("bad request")))
     }
 }

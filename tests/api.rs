@@ -490,3 +490,26 @@ async fn concurrent_alias_creation_has_one_winner(pool: PgPool) {
     assert_eq!(codes.iter().filter(|s| **s == StatusCode::CREATED).count(), 1);
     assert_eq!(codes.iter().filter(|s| **s == StatusCode::CONFLICT).count(), 9);
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn hostile_input_is_a_client_error_not_a_500(pool: PgPool) {
+    let t = setup(pool);
+    let c = t.register("nul@example.com").await;
+    // NUL in the path
+    assert_eq!(t.call(Method::GET, "/%00", None, None, false).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(t.call(Method::GET, &format!("/{}", "a".repeat(500)), None, None, false).await.0, StatusCode::NOT_FOUND);
+    assert!(!t.call(Method::GET, "/api/links/%00", Some(&c), None, true).await.0.is_server_error());
+    // NUL inside JSON strings
+    // (the URL parser percent-encodes it, so this one is accepted and stored safely as %00)
+    let (s, l) = t.post("/api/links", Some(&c), json!({"targetUrl":"https://example.com/a\u{0}b"})).await;
+    assert!(!s.is_server_error(), "got {s}");
+    if s == StatusCode::CREATED { assert_eq!(l["targetUrl"], "https://example.com/a%00b"); }
+    let (s, _) = t.post("/api/auth/register", None, json!({"name":"a\u{0}b","email":"x@example.com","password":"password123"})).await;
+    assert!(s.is_client_error(), "got {s}");
+    let (s, _) = t.post("/api/reports", None, json!({"url":"https://x.test/a","reason":"spam","details":"a\u{0}b"})).await;
+    assert!(s.is_client_error(), "got {s}");
+    // Oversized body
+    let big = "a".repeat(100_000);
+    let (s, _) = t.post("/api/links", Some(&c), json!({"targetUrl": format!("https://example.com/{big}")})).await;
+    assert_eq!(s, StatusCode::PAYLOAD_TOO_LARGE);
+}

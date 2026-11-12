@@ -40,6 +40,10 @@ struct Target {
 
 pub async fn redirect(State(state): State<AppState>, ClientIp(ip): ClientIp, method: Method, Path(code): Path<String>, headers: HeaderMap) -> ApiResult<Response> {
     state.rate_limit_local(&format!("redirect:{ip}"), 600, 60)?;
+    // Codes are short ASCII identifiers; anything else cannot exist (and NUL bytes can't be queried).
+    if code.len() > 64 || code.contains('\0') {
+        return Err(ApiError::NotFound);
+    }
     let row: Option<(String, bool, bool, Option<DateTime<Utc>>)> =
         tokio::time::timeout(std::time::Duration::from_secs(3),
             sqlx::query_as("select target_url, is_active, disabled_by_admin, expires_at from link where id = $1").bind(&code).fetch_optional(&state.db))
