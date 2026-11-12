@@ -383,3 +383,25 @@ async fn change_password_revokes_other_sessions(pool: PgPool) {
     assert_eq!(t.get("/api/me", Some(&c1)).await.0, StatusCode::OK);
     assert_eq!(t.get("/api/me", Some(&c2)).await.0, StatusCode::UNAUTHORIZED);
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn rate_limit_is_shared_between_replicas(pool: PgPool) {
+    // Two independent AppState instances (separate in-memory state) on the same database.
+    let a = AppState::new(pool.clone(), Config::for_tests());
+    let b = AppState::new(pool, Config::for_tests());
+    for _ in 0..3 { a.rate_limit("k", 5, 60).await.unwrap(); }
+    for _ in 0..2 { b.rate_limit("k", 5, 60).await.unwrap(); }
+    assert!(a.rate_limit("k", 5, 60).await.is_err(), "6th hit across replicas must be rejected");
+    assert!(b.rate_limit("k", 5, 60).await.is_err());
+    b.rate_limit("other", 5, 60).await.unwrap();
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn rate_limit_is_atomic_under_concurrency(pool: PgPool) {
+    let s = AppState::new(pool, Config::for_tests());
+    let mut hs = vec![];
+    for _ in 0..40 { let s = s.clone(); hs.push(tokio::spawn(async move { s.rate_limit("burst", 10, 60).await.is_ok() })); }
+    let mut ok = 0;
+    for h in hs { if h.await.unwrap() { ok += 1; } }
+    assert_eq!(ok, 10);
+}

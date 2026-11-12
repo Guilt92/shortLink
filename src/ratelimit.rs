@@ -19,6 +19,10 @@ impl RateLimiter {
         if map.len() > 50_000 {
             map.retain(|_, (start, _)| now.duration_since(*start) < Duration::from_secs(3600));
         }
+        if map.len() > 200_000 {
+            // Hard cap against key-flooding memory growth: drop everything rather than grow unbounded.
+            map.clear();
+        }
         let entry = map.entry(key.to_string()).or_insert((now, 0));
         if now.duration_since(entry.0) >= window {
             *entry = (now, 0);

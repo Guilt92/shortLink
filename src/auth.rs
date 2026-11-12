@@ -137,7 +137,7 @@ pub async fn create_user(state: &AppState, name: &str, email: &str, password: &s
 }
 
 pub async fn register(State(state): State<AppState>, ClientIp(ip): ClientIp, headers: HeaderMap, ApiJson(b): ApiJson<RegisterBody>) -> ApiResult<Response> {
-    state.rate_limit(&format!("register:{ip}"), 10, 3600)?;
+    state.rate_limit(&format!("register:{ip}"), 10, 3600).await?;
     if !state.setting_bool("allow_registration", true).await {
         return Err(ApiError::Forbidden);
     }
@@ -163,8 +163,8 @@ pub struct LoginBody { pub email: String, pub password: String, #[serde(default)
 
 pub async fn login(State(state): State<AppState>, ClientIp(ip): ClientIp, headers: HeaderMap, ApiJson(b): ApiJson<LoginBody>) -> ApiResult<Response> {
     let email = b.email.trim().to_lowercase();
-    state.rate_limit(&format!("login-ip:{ip}"), 30, 900)?;
-    state.rate_limit(&format!("login-email:{email}"), 8, 900)?;
+    state.rate_limit(&format!("login-ip:{ip}"), 30, 900).await?;
+    state.rate_limit(&format!("login-email:{email}"), 8, 900).await?;
     let row: Option<(i64, String, String)> = sqlx::query_as("select id, password_hash, status from users where lower(email) = $1")
         .bind(&email).fetch_optional(&state.db).await?;
     // Always run one Argon2 verification so response time does not reveal whether the account exists.
@@ -218,7 +218,7 @@ pub async fn update_me(State(state): State<AppState>, user: AuthUser, ApiJson(b)
 pub struct ChangePassword { pub current_password: String, pub new_password: String }
 
 pub async fn change_password(State(state): State<AppState>, user: AuthUser, headers: HeaderMap, ApiJson(b): ApiJson<ChangePassword>) -> ApiResult<StatusCode> {
-    state.rate_limit(&format!("chpw:{}", user.id), 10, 900)?;
+    state.rate_limit(&format!("chpw:{}", user.id), 10, 900).await?;
     validate_password(&b.new_password)?;
     let hash: String = sqlx::query_scalar("select password_hash from users where id = $1").bind(user.id).fetch_one(&state.db).await?;
     if !verify_password(b.current_password, hash).await {
@@ -237,9 +237,9 @@ pub async fn change_password(State(state): State<AppState>, user: AuthUser, head
 pub struct ForgotBody { pub email: String }
 
 pub async fn forgot_password(State(state): State<AppState>, ClientIp(ip): ClientIp, ApiJson(b): ApiJson<ForgotBody>) -> ApiResult<Json<serde_json::Value>> {
-    state.rate_limit(&format!("forgot-ip:{ip}"), 10, 3600)?;
+    state.rate_limit(&format!("forgot-ip:{ip}"), 10, 3600).await?;
     let email = b.email.trim().to_lowercase();
-    state.rate_limit(&format!("forgot-email:{email}"), 3, 3600)?;
+    state.rate_limit(&format!("forgot-email:{email}"), 3, 3600).await?;
     let generic = Json(json!({ "message": "If an account exists for that email, a reset link has been sent." }));
     let uid: Option<i64> = sqlx::query_scalar("select id from users where lower(email) = $1 and status = 'active'").bind(&email).fetch_optional(&state.db).await?;
     if let Some(uid) = uid {
@@ -261,7 +261,7 @@ pub async fn forgot_password(State(state): State<AppState>, ClientIp(ip): Client
 pub struct ResetBody { pub token: String, pub password: String }
 
 pub async fn reset_password(State(state): State<AppState>, ClientIp(ip): ClientIp, ApiJson(b): ApiJson<ResetBody>) -> ApiResult<StatusCode> {
-    state.rate_limit(&format!("reset-ip:{ip}"), 10, 3600)?;
+    state.rate_limit(&format!("reset-ip:{ip}"), 10, 3600).await?;
     validate_password(&b.password)?;
     let mut tx = state.db.begin().await?;
     let uid: Option<i64> = sqlx::query_scalar(

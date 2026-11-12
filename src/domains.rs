@@ -57,7 +57,7 @@ pub async fn list(State(state): State<AppState>, user: AuthUser) -> ApiResult<Js
 pub struct AddBody { pub hostname: String }
 
 pub async fn add(State(state): State<AppState>, user: AuthUser, ApiJson(b): ApiJson<AddBody>) -> ApiResult<(StatusCode, Json<DomainView>)> {
-    state.rate_limit(&format!("domain-add:{}", user.id), 20, 3600)?;
+    state.rate_limit(&format!("domain-add:{}", user.id), 20, 3600).await?;
     let host = validate_hostname(&b.hostname)?;
     if host == state.cfg.base_host() { return Err(ApiError::bad("This is the service's own domain")); }
     let count: i64 = sqlx::query_scalar("select count(*) from domains where user_id = $1").bind(user.id).fetch_one(&state.db).await?;
@@ -74,7 +74,7 @@ pub async fn add(State(state): State<AppState>, user: AuthUser, ApiJson(b): ApiJ
 }
 
 pub async fn verify(State(state): State<AppState>, user: AuthUser, Path(id): Path<i64>) -> ApiResult<Json<DomainView>> {
-    state.rate_limit(&format!("domain-verify:{}", user.id), 30, 3600)?;
+    state.rate_limit(&format!("domain-verify:{}", user.id), 30, 3600).await?;
     let r: DomainRow = sqlx::query_as(&format!("{SELECT} where d.id = $1 and d.user_id = $2")).bind(id).bind(user.id)
         .fetch_optional(&state.db).await?.ok_or(ApiError::NotFound)?;
     if r.verified_at.is_none() {

@@ -176,7 +176,7 @@ pub async fn set_link_disabled(State(state): State<AppState>, AdminUser(a): Admi
 }
 
 pub async fn delete_link(State(state): State<AppState>, AdminUser(a): AdminUser, Path(code): Path<String>) -> ApiResult<StatusCode> {
-    if links::delete_links(&state, &[code.clone()], None).await? == 0 { return Err(ApiError::NotFound); }
+    if links::delete_links(&state, std::slice::from_ref(&code), None).await? == 0 { return Err(ApiError::NotFound); }
     state.audit(Some(a.id), "link.delete", "link", &code, json!({})).await;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -200,12 +200,12 @@ pub async fn reports(State(state): State<AppState>, _a: AdminUser, ApiQuery(q): 
     let page = q.page.unwrap_or(1).max(1);
     let status = q.status.filter(|s| ["pending", "resolved", "rejected"].contains(&s.as_str()));
     let total: i64 = sqlx::query_scalar("select count(*) from abuse_reports where ($1::text is null or status = $1)").bind(&status).fetch_one(&state.db).await?;
-    let items: Vec<ReportRow> = sqlx::query_as(&format!(
+    let items: Vec<ReportRow> = sqlx::query_as(
         "select r.id, r.link_id, r.reported_url, r.reporter, r.reason, r.details, r.status, r.assigned_to, a.email as assigned_email, r.created_at, r.resolved_at,
                 (case when l.id is null then null when l.disabled_by_admin or not l.is_active then 'disabled' when l.expires_at is not null and l.expires_at <= now() then 'expired' else 'active' end) as link_status,
                 l.target_url
          from abuse_reports r left join users a on a.id = r.assigned_to left join link l on l.id = r.link_id
-         where ($1::text is null or r.status = $1) order by (r.status = 'pending') desc, r.created_at desc limit $2 offset $3"))
+         where ($1::text is null or r.status = $1) order by (r.status = 'pending') desc, r.created_at desc limit $2 offset $3")
         .bind(&status).bind(per_page).bind((page - 1) * per_page).fetch_all(&state.db).await?;
     Ok(Json(Page { items, total, page, per_page }))
 }

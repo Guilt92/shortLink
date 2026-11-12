@@ -201,7 +201,7 @@ pub async fn insert_link(state: &AppState, owner: Option<i64>, b: &CreateBody) -
 }
 
 pub async fn create(State(state): State<AppState>, user: AuthUser, ApiJson(b): ApiJson<CreateBody>) -> ApiResult<(StatusCode, Json<LinkView>)> {
-    state.rate_limit(&format!("create:{}", user.id), 120, 3600)?;
+    state.rate_limit(&format!("create:{}", user.id), 120, 3600).await?;
     let code = insert_link(&state, Some(user.id), &b).await?;
     Ok((StatusCode::CREATED, Json(fetch_link(&state, &code, Some(user.id)).await?.view(&state))))
 }

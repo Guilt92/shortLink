@@ -36,6 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         loop {
             tokio::time::sleep(Duration::from_secs(3600)).await;
             let _ = sqlx::query("delete from sessions where expires_at < now()").execute(&db).await;
+            let _ = sqlx::query("delete from rate_limits where window_start < now() - interval '1 day'").execute(&db).await;
             let _ = sqlx::query("delete from password_resets where expires_at < now() - interval '1 day'").execute(&db).await;
         }
     });

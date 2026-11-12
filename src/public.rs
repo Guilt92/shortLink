@@ -39,7 +39,7 @@ struct Target {
 }
 
 pub async fn redirect(State(state): State<AppState>, ClientIp(ip): ClientIp, method: Method, Path(code): Path<String>, headers: HeaderMap) -> ApiResult<Response> {
-    state.rate_limit(&format!("redirect:{ip}"), 600, 60)?;
+    state.rate_limit_local(&format!("redirect:{ip}"), 600, 60)?;
     let row: Option<(String, bool, bool, Option<DateTime<Utc>>)> =
         tokio::time::timeout(std::time::Duration::from_secs(3),
             sqlx::query_as("select target_url, is_active, disabled_by_admin, expires_at from link where id = $1").bind(&code).fetch_optional(&state.db))
@@ -73,13 +73,13 @@ pub async fn redirect(State(state): State<AppState>, ClientIp(ip): ClientIp, met
             }
         });
     }
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::TEMPORARY_REDIRECT)
         // Must not be cached, otherwise repeat clicks never reach us and are not counted.
         .header(header::CACHE_CONTROL, "private, no-store")
         .header(header::LOCATION, location)
         .body(Body::empty())
-        .map_err(|_| ApiError::Internal)?)
+        .map_err(|_| ApiError::Internal)
 }
 
 #[derive(Deserialize)]
@@ -88,7 +88,7 @@ pub struct LegacyCreate { pub target_url: String }
 
 /// Backwards-compatible anonymous creation endpoint (`POST /create`).
 pub async fn create_anonymous(State(state): State<AppState>, ClientIp(ip): ClientIp, ApiJson(b): ApiJson<LegacyCreate>) -> ApiResult<(StatusCode, Json<serde_json::Value>)> {
-    state.rate_limit(&format!("anon-create:{ip}"), 30, 600)?;
+    state.rate_limit(&format!("anon-create:{ip}"), 30, 600).await?;
     if !state.setting_bool("allow_anonymous_links", true).await {
         return Err(ApiError::Forbidden);
     }
@@ -102,7 +102,7 @@ pub async fn create_anonymous(State(state): State<AppState>, ClientIp(ip): Clien
 pub struct ReportBody { pub url: String, pub reason: String, pub details: Option<String>, pub reporter: Option<String> }
 
 pub async fn report(State(state): State<AppState>, ClientIp(ip): ClientIp, ApiJson(b): ApiJson<ReportBody>) -> ApiResult<StatusCode> {
-    state.rate_limit(&format!("report:{ip}"), 5, 3600)?;
+    state.rate_limit(&format!("report:{ip}"), 5, 3600).await?;
     if !["spam", "phishing", "malware", "illegal", "other"].contains(&b.reason.as_str()) {
         return Err(ApiError::bad("Unknown reason"));
     }
