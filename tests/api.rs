@@ -446,3 +446,47 @@ async fn click_totals_and_unique_visitors_are_exact(pool: PgPool) {
     let (_, w) = t.get(&format!("/api/links/{code}/stats?days=60"), Some(&c)).await;
     assert_eq!((w["clicks"].as_i64(), w["uniqueVisitors"].as_i64()), (Some(7), Some(3)));
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn link_quota_holds_under_concurrency(pool: PgPool) {
+    let t = setup(pool.clone());
+    let c = t.register("quota@example.com").await;
+    sqlx::query("insert into app_settings (key, value) values ('max_links_per_user','5') on conflict (key) do update set value = excluded.value").execute(&pool).await.unwrap();
+    let mut hs = vec![];
+    for i in 0..20 {
+        let app = t.app.clone();
+        let c = c.clone();
+        hs.push(tokio::spawn(async move {
+            let req = Request::builder().method(Method::POST).uri("/api/links").header("x-sl-csrf", "1").header(header::COOKIE, c)
+                .header(header::CONTENT_TYPE, "application/json").header("x-forwarded-for", "10.0.0.9")
+                .body(Body::from(json!({"targetUrl": format!("https://example.com/{i}")}).to_string())).unwrap();
+            app.oneshot(req).await.unwrap().status()
+        }));
+    }
+    let mut created = 0;
+    for h in hs { if h.await.unwrap() == StatusCode::CREATED { created += 1; } }
+    assert_eq!(created, 5, "exactly the quota may be created, however many race");
+    let n: i64 = sqlx::query_scalar("select count(*) from link").fetch_one(&pool).await.unwrap();
+    assert_eq!(n, 5);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn concurrent_alias_creation_has_one_winner(pool: PgPool) {
+    let t = setup(pool);
+    let c = t.register("alias@example.com").await;
+    let mut hs = vec![];
+    for _ in 0..10 {
+        let app = t.app.clone();
+        let c = c.clone();
+        hs.push(tokio::spawn(async move {
+            let req = Request::builder().method(Method::POST).uri("/api/links").header("x-sl-csrf", "1").header(header::COOKIE, c)
+                .header(header::CONTENT_TYPE, "application/json").header("x-forwarded-for", "10.0.0.8")
+                .body(Body::from(json!({"targetUrl": "https://example.com/a", "alias": "contested"}).to_string())).unwrap();
+            app.oneshot(req).await.unwrap().status()
+        }));
+    }
+    let mut codes = vec![];
+    for h in hs { codes.push(h.await.unwrap()); }
+    assert_eq!(codes.iter().filter(|s| **s == StatusCode::CREATED).count(), 1);
+    assert_eq!(codes.iter().filter(|s| **s == StatusCode::CONFLICT).count(), 9);
+}

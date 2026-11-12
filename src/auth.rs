@@ -89,21 +89,56 @@ impl FromRequestParts<AppState> for AdminUser {
     }
 }
 
-async fn hash_password(p: String) -> ApiResult<String> {
-    tokio::task::spawn_blocking(move || {
-        Argon2::default().hash_password(p.as_bytes(), &SaltString::generate(&mut OsRng)).map(|h| h.to_string())
+/// Argon2 allocates ~19 MiB per hash and is CPU-bound. Two things keep a login flood from exhausting
+/// memory: (1) hashing runs on a small *dedicated* thread pool, because glibc keeps a malloc arena per
+/// thread and tokio's elastic blocking pool retained over 1.2 GiB after a few hundred hashes in load
+/// testing (OOM kill at 64 concurrent attempts); (2) a semaphore bounds queued work, and callers that
+/// wait too long get a 503 instead of piling up.
+const HASH_THREADS: usize = 4;
+static HASH_GATE: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(HASH_THREADS * 2);
+
+type HashJob = Box<dyn FnOnce() + Send + 'static>;
+
+fn hash_pool() -> &'static std::sync::mpsc::Sender<HashJob> {
+    static POOL: std::sync::OnceLock<std::sync::mpsc::Sender<HashJob>> = std::sync::OnceLock::new();
+    POOL.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::channel::<HashJob>();
+        let rx = std::sync::Arc::new(std::sync::Mutex::new(rx));
+        for i in 0..HASH_THREADS {
+            let rx = rx.clone();
+            std::thread::Builder::new()
+                .name(format!("argon2-{i}"))
+                .spawn(move || loop {
+                    let job = match rx.lock().unwrap_or_else(|p| p.into_inner()).recv() {
+                        Ok(j) => j,
+                        Err(_) => break,
+                    };
+                    job();
+                })
+                .expect("spawn hashing thread");
+        }
+        tx
     })
-    .await
-    .map_err(|_| ApiError::Internal)?
-    .map_err(|e| { tracing::error!("hash error: {e}"); ApiError::Internal })
 }
 
-async fn verify_password(p: String, hash: String) -> bool {
-    tokio::task::spawn_blocking(move || {
-        PasswordHash::new(&hash).map(|h| Argon2::default().verify_password(p.as_bytes(), &h).is_ok()).unwrap_or(false)
-    })
-    .await
-    .unwrap_or(false)
+async fn run_hash<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> ApiResult<T> {
+    let _permit = match tokio::time::timeout(std::time::Duration::from_secs(10), HASH_GATE.acquire()).await {
+        Ok(Ok(p)) => p,
+        _ => return Err(ApiError::Unavailable),
+    };
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    hash_pool().send(Box::new(move || { let _ = tx.send(f()); })).map_err(|_| ApiError::Internal)?;
+    rx.await.map_err(|_| ApiError::Internal)
+}
+
+async fn hash_password(p: String) -> ApiResult<String> {
+    run_hash(move || Argon2::default().hash_password(p.as_bytes(), &SaltString::generate(&mut OsRng)).map(|h| h.to_string()))
+        .await?
+        .map_err(|e| { tracing::error!("hash error: {e}"); ApiError::Internal })
+}
+
+async fn verify_password(p: String, hash: String) -> ApiResult<bool> {
+    run_hash(move || PasswordHash::new(&hash).map(|h| Argon2::default().verify_password(p.as_bytes(), &h).is_ok()).unwrap_or(false)).await
 }
 
 fn cookie_header(state: &AppState, token: &str, max_age: i64) -> HeaderValue {
@@ -169,9 +204,9 @@ pub async fn login(State(state): State<AppState>, ClientIp(ip): ClientIp, header
         .bind(&email).fetch_optional(&state.db).await?;
     // Always run one Argon2 verification so response time does not reveal whether the account exists.
     let (ok, id, status) = match row {
-        Some((id, h, s)) => (verify_password(b.password, h).await, Some(id), s),
+        Some((id, h, s)) => (verify_password(b.password, h).await?, Some(id), s),
         None => {
-            let _ = hash_password(b.password).await; // comparable cost to a real verification
+            hash_password(b.password).await?; // comparable cost to a real verification
             (false, None, String::new())
         }
     };
@@ -221,7 +256,7 @@ pub async fn change_password(State(state): State<AppState>, user: AuthUser, head
     state.rate_limit(&format!("chpw:{}", user.id), 10, 900).await?;
     validate_password(&b.new_password)?;
     let hash: String = sqlx::query_scalar("select password_hash from users where id = $1").bind(user.id).fetch_one(&state.db).await?;
-    if !verify_password(b.current_password, hash).await {
+    if !verify_password(b.current_password, hash).await? {
         return Err(ApiError::bad("Current password is incorrect"));
     }
     let new_hash = hash_password(b.new_password).await?;

@@ -20,7 +20,8 @@ COPY --from=build /app/target/release/link-shortener /usr/local/bin/link-shorten
 COPY --from=web /web/dist ./frontend/dist
 COPY website/static ./website/static
 USER app
-ENV BIND_ADDR=0.0.0.0:3000
+# Return large allocations (Argon2 uses ~19 MiB per hash) to the OS instead of letting glibc retain them.
+ENV BIND_ADDR=0.0.0.0:3000 MALLOC_MMAP_THRESHOLD_=1048576
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s CMD curl -fs http://127.0.0.1:3000/ready || exit 1
 CMD ["link-shortener"]

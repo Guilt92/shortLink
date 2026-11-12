@@ -177,24 +177,28 @@ pub async fn insert_link(state: &AppState, owner: Option<i64>, b: &CreateBody) -
     check_expiry(&b.expires_at)?;
     if let Some(a) = &b.alias { validate_alias(a)?; }
     if let (Some(uid), Some(did)) = (owner, b.domain_id) { check_domain(&state.db, did, uid).await?; }
+    // Read settings *before* taking a transaction connection: needing a second pool connection while
+    // holding one can deadlock the pool under load.
+    let max: i64 = if owner.is_some() { state.setting("max_links_per_user").await.and_then(|v| v.parse().ok()).unwrap_or(1000) } else { 0 };
+    let mut tx = state.db.begin().await?;
     if let Some(uid) = owner {
-        let max: i64 = state.setting("max_links_per_user").await.and_then(|v| v.parse().ok()).unwrap_or(1000);
-        let n: i64 = sqlx::query_scalar("select count(*) from link where user_id = $1").bind(uid).fetch_one(&state.db).await?;
+        // Serialise creations per user so the quota check and the insert are atomic.
+        sqlx::query("select pg_advisory_xact_lock($1)").bind(uid).execute(&mut *tx).await?;
+        let n: i64 = sqlx::query_scalar("select count(*) from link where user_id = $1").bind(uid).fetch_one(&mut *tx).await?;
         if n >= max { return Err(ApiError::conflict(format!("Link limit reached ({max})"))); }
     }
     let attempts = if b.alias.is_some() { 1 } else { 5 };
     for _ in 0..attempts {
         let code = b.alias.clone().unwrap_or_else(generate_code);
-        let r = sqlx::query("insert into link (id, target_url, user_id, domain_id, is_active, expires_at) values ($1,$2,$3,$4,$5,$6)")
+        let inserted = sqlx::query("insert into link (id, target_url, user_id, domain_id, is_active, expires_at) values ($1,$2,$3,$4,$5,$6) on conflict do nothing")
             .bind(&code).bind(&target).bind(owner).bind(b.domain_id.filter(|_| owner.is_some())).bind(b.is_active.unwrap_or(true)).bind(b.expires_at)
-            .execute(&state.db).await;
-        match r {
-            Ok(_) => return Ok(code),
-            Err(sqlx::Error::Database(e)) if e.is_unique_violation() => {
-                if b.alias.is_some() { return Err(ApiError::conflict("This alias is already taken")); }
-            }
-            Err(e) => return Err(e.into()),
+            .execute(&mut *tx).await?
+            .rows_affected();
+        if inserted == 1 {
+            tx.commit().await?;
+            return Ok(code);
         }
+        if b.alias.is_some() { return Err(ApiError::conflict("This alias is already taken")); }
     }
     tracing::error!("could not generate a unique link code");
     Err(ApiError::Internal)
