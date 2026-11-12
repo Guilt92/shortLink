@@ -8,7 +8,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-shortlink}
     # Bound to loopback only; the app talks to it over the compose network.
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${DB_HOST_PORT:-5432}:5432"
     volumes:
       - db:/var/lib/postgresql/data
     healthcheck:
@@ -32,7 +32,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       VISITOR_SALT: ${VISITOR_SALT:-}
     ports:
-      - "3000:3000"
+      - "${APP_HOST_PORT:-3000}:3000"
 
 volumes:
   db:

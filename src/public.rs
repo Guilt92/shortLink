@@ -43,7 +43,7 @@ pub async fn redirect(State(state): State<AppState>, ClientIp(ip): ClientIp, met
     let row: Option<(String, bool, bool, Option<DateTime<Utc>>)> =
         tokio::time::timeout(std::time::Duration::from_secs(3),
             sqlx::query_as("select target_url, is_active, disabled_by_admin, expires_at from link where id = $1").bind(&code).fetch_optional(&state.db))
-            .await.map_err(|_| { tracing::error!("redirect lookup timed out"); ApiError::Internal })??;
+            .await.map_err(|_| { tracing::error!("redirect lookup timed out"); ApiError::Unavailable })??;
     let t = row.map(|(url, a, d, e)| Target { url, is_active: a, disabled_by_admin: d, expires_at: e }).ok_or(ApiError::NotFound)?;
     if !t.is_active || t.disabled_by_admin || matches!(t.expires_at, Some(e) if e <= Utc::now()) {
         return Err(ApiError::Gone);

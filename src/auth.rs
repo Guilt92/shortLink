@@ -226,6 +226,7 @@ pub async fn change_password(State(state): State<AppState>, user: AuthUser, head
     }
     let new_hash = hash_password(b.new_password).await?;
     sqlx::query("update users set password_hash = $1 where id = $2").bind(new_hash).bind(user.id).execute(&state.db).await?;
+    sqlx::query("update password_resets set used_at = now() where user_id = $1 and used_at is null").bind(user.id).execute(&state.db).await?;
     // Revoke every other session.
     let keep = session_token(&headers).map(|t| sha256_hex(&t)).unwrap_or_default();
     sqlx::query("delete from sessions where user_id = $1 and token_hash <> $2").bind(user.id).bind(keep).execute(&state.db).await?;
@@ -271,6 +272,8 @@ pub async fn reset_password(State(state): State<AppState>, ClientIp(ip): ClientI
     let hash = hash_password(b.password).await?;
     sqlx::query("update users set password_hash = $1 where id = $2").bind(hash).bind(uid).execute(&mut *tx).await?;
     sqlx::query("delete from sessions where user_id = $1").bind(uid).execute(&mut *tx).await?;
+    // Any other outstanding reset links for this account die with the first one that is used.
+    sqlx::query("update password_resets set used_at = now() where user_id = $1 and used_at is null").bind(uid).execute(&mut *tx).await?;
     tx.commit().await?;
     state.audit(Some(uid), "user.password_reset", "user", &uid.to_string(), json!({})).await;
     Ok(StatusCode::NO_CONTENT)

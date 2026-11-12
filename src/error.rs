@@ -16,6 +16,8 @@ pub enum ApiError {
     Conflict(String),
     Gone,
     TooMany,
+    /// A dependency (the database) is temporarily unreachable; clients may retry.
+    Unavailable,
     Internal,
 }
 
@@ -41,6 +43,7 @@ impl IntoResponse for ApiError {
             ApiError::Conflict(m) => (StatusCode::CONFLICT, m),
             ApiError::Gone => (StatusCode::GONE, "This link is no longer available".into()),
             ApiError::TooMany => (StatusCode::TOO_MANY_REQUESTS, "Too many requests, please try again later".into()),
+            ApiError::Unavailable => (StatusCode::SERVICE_UNAVAILABLE, "Service temporarily unavailable, please retry".into()),
             ApiError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".into()),
         };
         (status, Json(json!({ "error": msg }))).into_response()
@@ -51,7 +54,10 @@ impl From<sqlx::Error> for ApiError {
     fn from(e: sqlx::Error) -> Self {
         // Never leak database details to clients.
         tracing::error!("database error: {e}");
-        ApiError::Internal
+        match e {
+            sqlx::Error::PoolTimedOut | sqlx::Error::PoolClosed | sqlx::Error::Io(_) => ApiError::Unavailable,
+            _ => ApiError::Internal,
+        }
     }
 }
 

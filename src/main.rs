@@ -28,7 +28,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let db = PgPoolOptions::new().max_connections(max_conn).acquire_timeout(Duration::from_secs(5)).connect(&db_url).await?;
     sqlx::migrate!("./migrations").run(&db).await?;
 
-    let state = AppState::new(db.clone(), Config::from_env());
+    let cfg = Config::from_env();
+    if cfg.mail_log && cfg.public_base_url.starts_with("https://") {
+        tracing::warn!("MAIL_MODE=log is enabled with an https PUBLIC_BASE_URL: live password-reset links are being written to the logs. This is for development only.");
+    }
+    if std::env::var("VISITOR_SALT").map(|v| v.is_empty()).unwrap_or(true) {
+        tracing::warn!("VISITOR_SALT is not set: unique-visitor hashes change on every restart and differ between replicas.");
+    }
+    let state = AppState::new(db.clone(), cfg);
     auth::bootstrap_admin(&state).await;
 
     // Hourly cleanup of expired sessions and reset tokens.
