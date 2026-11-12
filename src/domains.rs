@@ -6,7 +6,7 @@ use crate::{
 };
 use axum::{extract::{Path, State}, http::StatusCode, Json};
 use chrono::{DateTime, Utc};
-use hickory_resolver::TokioAsyncResolver;
+use hickory_resolver::TokioResolver;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::FromRow;
@@ -79,9 +79,9 @@ pub async fn verify(State(state): State<AppState>, user: AuthUser, Path(id): Pat
         .fetch_optional(&state.db).await?.ok_or(ApiError::NotFound)?;
     if r.verified_at.is_none() {
         let name = format!("_shortlink-verify.{}.", r.hostname);
-        let resolver = TokioAsyncResolver::tokio_from_system_conf().map_err(|e| { tracing::error!("resolver: {e}"); ApiError::Internal })?;
+        let resolver = TokioResolver::builder_tokio().and_then(|b| b.build()).map_err(|e| { tracing::error!("resolver: {e}"); ApiError::Internal })?;
         let found = match tokio::time::timeout(std::time::Duration::from_secs(5), resolver.txt_lookup(name)).await {
-            Ok(Ok(txt)) => txt.iter().any(|t| t.to_string().trim() == r.verify_token),
+            Ok(Ok(txt)) => txt.answers().iter().any(|rec| matches!(&rec.data, hickory_resolver::proto::rr::RData::TXT(t) if t.to_string().trim() == r.verify_token)),
             _ => false,
         };
         if !found {

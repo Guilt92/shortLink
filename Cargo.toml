@@ -17,7 +17,7 @@ axum = { version = "0.7.2", features = ["macros"] }
 chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15.7"
 hex = "0.4"
-hickory-resolver = "0.24"
+hickory-resolver = "0.26"
 maud = "0.27.0"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 rand = "0.8.5"
