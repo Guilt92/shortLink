@@ -157,6 +157,7 @@ export function AppShell({ admin = false }: { admin?: boolean }) {
 
   return (
     <TooltipProvider delayDuration={150}>
+      <a href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }} className="sr-only z-[60] rounded-md bg-background px-3 py-2 text-sm font-medium shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:ring-2 focus:ring-ring">Skip to content</a>
       <div className="flex min-h-screen">
         <aside className={cn("sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-sidebar transition-[width] duration-200 md:flex", collapsed ? "w-14" : "w-60")}>
           <Brand collapsed={collapsed} admin={admin} />
@@ -200,7 +201,7 @@ export function AppShell({ admin = false }: { admin?: boolean }) {
               <div className="md:hidden"><UserMenu side="bottom" collapsed iconOnly admin={admin} /></div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 p-4 md:p-6"><Outlet /></main>
+          <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 space-y-6 p-4 outline-none md:p-6"><Outlet /></main>
         </div>
       </div>
     </TooltipProvider>

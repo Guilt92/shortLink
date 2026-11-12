@@ -47,8 +47,8 @@ export default function LinkDetails() {
         <CardContent>
           {!l ? <Skeleton className="h-32 w-full" /> : (
             <dl className="divide-y text-sm">
-              <Row label="Short URL"><span className="inline-flex items-center gap-1"><a href={l.shortUrl} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{l.shortUrl}</a><CopyButton value={l.shortUrl} /></span></Row>
-              <Row label="Destination"><a href={l.targetUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:underline">{l.targetUrl}<ExternalLink className="size-3 shrink-0" /></a></Row>
+              <Row label="Short URL"><span className="inline-flex max-w-full items-center gap-1 break-all"><a href={l.shortUrl} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{l.shortUrl}</a><CopyButton value={l.shortUrl} /></span></Row>
+              <Row label="Destination"><a href={l.targetUrl} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1 break-all hover:underline">{l.targetUrl}<ExternalLink className="size-3 shrink-0" /></a></Row>
               <Row label="Status"><StatusBadge status={l.status} />{l.disabledByAdmin && <span className="ml-2 text-xs text-muted-foreground">Disabled by an administrator</span>}</Row>
               <Row label="Created">{formatDate(l.createdAt, true)}</Row>
               <Row label="Expires">{l.expiresAt ? formatDate(l.expiresAt, true) : "Never"}</Row>
@@ -65,7 +65,7 @@ export default function LinkDetails() {
         <StatCard title="Unique visitors" icon={Users} value={s?.uniqueVisitors} loading={stats.isLoading} hint="estimated from hashed IP + browser" />
       </div>
       <TimeSeriesChart title="Clicks over time" data={s?.series as never} loading={stats.isLoading} error={err} onRetry={retry} series={[{ key: "clicks", label: "Clicks" }, { key: "visitors", label: "Unique visitors" }]} />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <BarBreakdown title="Top referrers" description="Where visitors came from" data={s?.referrers} loading={stats.isLoading} error={err} onRetry={retry} />
         <DonutBreakdown title="Devices" data={s?.devices} loading={stats.isLoading} error={err} onRetry={retry} />
         <BarBreakdown title="Browsers" data={s?.browsers} loading={stats.isLoading} error={err} onRetry={retry} />

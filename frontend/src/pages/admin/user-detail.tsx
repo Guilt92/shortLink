@@ -37,7 +37,7 @@ export default function AdminUserDetail() {
         <StatCard title="Total clicks" icon={MousePointerClick} value={d?.usage.clicks} loading={q.isLoading} />
         <StatCard title="Custom domains" icon={Globe} value={d?.usage.domains} loading={q.isLoading} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <CardHeader><CardTitle>Account</CardTitle></CardHeader>
           <CardContent>{!d ? <Skeleton className="h-32 w-full" /> : (

@@ -33,7 +33,7 @@ export default function QrCodes() {
         : q.data!.total === 0 ? <Card><EmptyState icon={QrCode} title={dq ? "No matching links" : "No QR codes yet"} description={dq ? "Try a different search." : "Create a short link and its QR code will appear here."} action={!dq && <Button asChild><Link to="/links/new">Create Short Link</Link></Button>} /></Card>
         : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
               {q.data!.items.map((l) => (
                 <Card key={l.code} className="flex flex-col gap-3 p-4">
                   <button className="mx-auto w-full max-w-[160px] rounded-md border bg-white p-1" onClick={() => setOpen(l)} aria-label={`Preview QR code for ${l.code}`}>

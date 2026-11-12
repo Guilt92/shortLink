@@ -31,12 +31,12 @@ export default function AdminOverviewPage() {
         <StatCard title="Total clicks" icon={MousePointerClick} value={t?.clicks} loading={q.isLoading} hint="all time" />
         <StatCard title="Pending abuse reports" icon={Flag} value={t?.pendingReports} loading={q.isLoading} hint={t?.pendingReports ? "need review" : undefined} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <TimeSeriesChart title="User registrations" data={d?.registrations as never} series={[{ key: "count", label: "Registrations" }]} loading={q.isLoading} error={err} onRetry={retry} />
         <TimeSeriesChart title="Links created" data={d?.linkCreations as never} series={[{ key: "count", label: "Links" }]} loading={q.isLoading} error={err} onRetry={retry} />
       </div>
       <TimeSeriesChart title="Platform click activity" data={d?.clickSeries as never} series={[{ key: "clicks", label: "Clicks" }, { key: "visitors", label: "Unique visitors" }]} loading={q.isLoading} error={err} onRetry={retry} />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <BarBreakdown title="Usage distribution" description={d ? `Top users by links created · ${d.usage.anonymousLinks} anonymous link(s)` : "Top users by links created"} unit="Links" data={d?.usage.topUsers} loading={q.isLoading} error={err} onRetry={retry} />
         <Card>
           <CardHeader><CardTitle>Recent activity</CardTitle></CardHeader>

@@ -81,7 +81,7 @@ export default function Domains() {
                   <TableCell>
                     <div className="flex justify-end gap-1">
                       {!d.verified && <Button variant="outline" size="sm" loading={verify.isPending && verify.variables === d.id} onClick={() => verify.mutate(d.id)}><RefreshCw />Verify</Button>}
-                      <Button variant="ghost" size="sm" onClick={() => setInstructions(d)}><BookOpen /><span className="hidden md:inline">DNS</span></Button>
+                      <Button variant="ghost" size="sm" aria-label={`DNS instructions for ${d.hostname}`} onClick={() => setInstructions(d)}><BookOpen /><span className="hidden md:inline">DNS</span></Button>
                       <Button variant="ghost" size="icon" className="size-8 text-destructive" aria-label={`Remove ${d.hostname}`} onClick={() => setRemoving(d)}><Trash2 /></Button>
                     </div>
                   </TableCell>

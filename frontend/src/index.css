@@ -21,6 +21,9 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
     --success: 142 71% 35%;
+    --success-text: 142 76% 22%;
+    --warning-text: 28 95% 27%;
+    --destructive-text: 0 72% 40%;
     --warning: 32 95% 40%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
@@ -52,6 +55,9 @@
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 98%;
     --success: 142 60% 50%;
+    --success-text: 142 65% 62%;
+    --warning-text: 38 92% 62%;
+    --destructive-text: 0 85% 70%;
     --warning: 38 92% 55%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;

@@ -11,7 +11,7 @@ export function AuthLayout({ title, description, children, footer }: { title: st
       </Link>
       <Card className="w-full max-w-sm">
         <CardHeader className="space-y-1 p-6 pb-4 text-center">
-          <CardTitle className="text-xl">{title}</CardTitle>
+          <CardTitle as="h1" className="text-xl">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="p-6 pt-0">{children}</CardContent>

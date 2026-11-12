@@ -26,7 +26,7 @@ export default function AdminAnalytics() {
         <StatCard title="Unique visitors" icon={Users} value={d?.uniqueVisitors} loading={q.isLoading} hint="estimated from hashed IP + browser" />
       </div>
       <TimeSeriesChart title="Clicks over time" data={d?.series as never} loading={q.isLoading} error={err} onRetry={retry} series={[{ key: "clicks", label: "Clicks" }, { key: "visitors", label: "Unique visitors" }]} />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <BarBreakdown title="Top referrers" data={d?.referrers} loading={q.isLoading} error={err} onRetry={retry} />
         <DonutBreakdown title="Devices" data={d?.devices} loading={q.isLoading} error={err} onRetry={retry} />
         <BarBreakdown title="Browsers" data={d?.browsers} loading={q.isLoading} error={err} onRetry={retry} />
