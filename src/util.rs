@@ -85,7 +85,9 @@ pub fn validate_hostname(h: &str) -> ApiResult<String> {
         !l.is_empty() && l.len() <= 63 && !l.starts_with('-') && !l.ends_with('-')
             && l.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
     });
-    if h.len() > 253 || !h.contains('.') || !labels_ok {
+    // The TLD must contain a letter: rejects IPv4 literals such as 10.0.0.1.
+    let tld_ok = h.rsplit('.').next().map(|t| t.chars().any(|c| c.is_ascii_alphabetic())).unwrap_or(false);
+    if h.len() > 253 || !h.contains('.') || !labels_ok || !tld_ok {
         return Err(ApiError::bad("Enter a valid domain name such as links.example.com"));
     }
     Ok(h)
@@ -161,6 +163,7 @@ mod tests {
         assert!(validate_hostname("links.example.com").is_ok());
         assert!(validate_hostname("http://x.com").is_err());
         assert!(validate_hostname("localhost").is_err());
+        assert!(validate_hostname("10.0.0.1").is_err());
     }
 
     #[test]

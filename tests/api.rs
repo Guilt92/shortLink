@@ -405,3 +405,17 @@ async fn rate_limit_is_atomic_under_concurrency(pool: PgPool) {
     for h in hs { if h.await.unwrap() { ok += 1; } }
     assert_eq!(ok, 10);
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn unverified_domain_claims_cannot_squat(pool: PgPool) {
+    let t = setup(pool);
+    let a = t.register("a@example.com").await;
+    let b = t.register("b@example.com").await;
+    let (s1, _) = t.post("/api/domains", Some(&a), json!({"hostname":"links.victim.com"})).await;
+    let (s2, _) = t.post("/api/domains", Some(&b), json!({"hostname":"links.victim.com"})).await;
+    assert_eq!((s1, s2), (StatusCode::CREATED, StatusCode::CREATED), "unverified claims must not block each other");
+    let (s3, _) = t.post("/api/domains", Some(&a), json!({"hostname":"LINKS.victim.com"})).await;
+    assert_eq!(s3, StatusCode::CONFLICT, "same user cannot add twice");
+    let (s4, _) = t.post("/api/domains", Some(&a), json!({"hostname":"10.1.2.3"})).await;
+    assert_eq!(s4, StatusCode::BAD_REQUEST);
+}

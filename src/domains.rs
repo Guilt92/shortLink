@@ -66,7 +66,7 @@ pub async fn add(State(state): State<AppState>, user: AuthUser, ApiJson(b): ApiJ
         .bind(user.id).bind(&host).bind(random_token()[..32].to_string()).fetch_one(&state.db).await;
     let id = match id {
         Ok(i) => i,
-        Err(sqlx::Error::Database(e)) if e.is_unique_violation() => return Err(ApiError::conflict("This domain is already registered")),
+        Err(sqlx::Error::Database(e)) if e.is_unique_violation() => return Err(ApiError::conflict("You already added this domain")),
         Err(e) => return Err(e.into()),
     };
     let r: DomainRow = sqlx::query_as(&format!("{SELECT} where d.id = $1")).bind(id).fetch_one(&state.db).await?;
@@ -87,7 +87,13 @@ pub async fn verify(State(state): State<AppState>, user: AuthUser, Path(id): Pat
         if !found {
             return Err(ApiError::bad("The TXT record was not found yet. DNS changes can take a while to propagate."));
         }
-        sqlx::query("update domains set verified_at = now() where id = $1").bind(id).execute(&state.db).await?;
+        match sqlx::query("update domains set verified_at = now() where id = $1").bind(id).execute(&state.db).await {
+            Ok(_) => {}
+            Err(sqlx::Error::Database(e)) if e.is_unique_violation() => {
+                return Err(ApiError::conflict("This domain is already verified by another account"));
+            }
+            Err(e) => return Err(e.into()),
+        }
         state.audit(Some(user.id), "domain.verify", "domain", &id.to_string(), json!({ "hostname": r.hostname })).await;
     }
     let r: DomainRow = sqlx::query_as(&format!("{SELECT} where d.id = $1")).bind(id).fetch_one(&state.db).await?;
