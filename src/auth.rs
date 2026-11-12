@@ -279,16 +279,25 @@ pub async fn forgot_password(State(state): State<AppState>, ClientIp(ip): Client
     let generic = Json(json!({ "message": "If an account exists for that email, a reset link has been sent." }));
     let uid: Option<i64> = sqlx::query_scalar("select id from users where lower(email) = $1 and status = 'active'").bind(&email).fetch_optional(&state.db).await?;
     if let Some(uid) = uid {
-        let token = random_token();
-        sqlx::query("insert into password_resets (user_id, token_hash, expires_at) values ($1,$2, now() + interval '1 hour')")
-            .bind(uid).bind(sha256_hex(&token)).execute(&state.db).await?;
-        let link = format!("{}/app/reset-password?token={}", state.cfg.public_base_url, token);
-        if state.cfg.mail_log {
-            // Development delivery only (MAIL_MODE=log). No SMTP transport is bundled.
-            tracing::warn!("password reset link for {email}: {link}");
-        } else {
-            tracing::warn!("password reset requested but no mail transport is configured (set MAIL_MODE=log for development)");
-        }
+        // Token creation and delivery happen off the request path, so the response time is the same
+        // whether or not the account exists (and a slow mail transport can't become a timing oracle).
+        let state = state.clone();
+        tokio::spawn(async move {
+            let token = random_token();
+            let r = sqlx::query("insert into password_resets (user_id, token_hash, expires_at) values ($1,$2, now() + interval '1 hour')")
+                .bind(uid).bind(sha256_hex(&token)).execute(&state.db).await;
+            if let Err(e) = r {
+                tracing::error!("could not store password reset token: {e}");
+                return;
+            }
+            let link = format!("{}/app/reset-password?token={}", state.cfg.public_base_url, token);
+            if state.cfg.mail_log {
+                // Development delivery only (MAIL_MODE=log). No SMTP transport is bundled.
+                tracing::warn!("password reset link for {email}: {link}");
+            } else {
+                tracing::warn!("password reset requested but no mail transport is configured (set MAIL_MODE=log for development)");
+            }
+        });
     }
     Ok(generic)
 }

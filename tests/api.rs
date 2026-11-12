@@ -127,7 +127,13 @@ async fn password_reset_flow(pool: PgPool) {
     assert_eq!(s, StatusCode::OK);
     let (s2, v2) = t.post("/api/auth/forgot-password", None, json!({"email":"ghost@example.com"})).await;
     assert_eq!((s2, &v2), (StatusCode::OK, &v)); // no enumeration
-    let n: i64 = sqlx::query_scalar("select count(*) from password_resets").fetch_one(&pool).await.unwrap();
+    // token creation is asynchronous: wait for it
+    let mut n: i64 = 0;
+    for _ in 0..50 {
+        n = sqlx::query_scalar("select count(*) from password_resets").fetch_one(&pool).await.unwrap();
+        if n > 0 { break; }
+        tokio::time::sleep(std::time::Duration::from_millis(40)).await;
+    }
     assert_eq!(n, 1);
     // the plaintext token is never stored; plant a known one for the test
     sqlx::query("update password_resets set token_hash = $1").bind(sha256_hex("known-token")).execute(&pool).await.unwrap();
