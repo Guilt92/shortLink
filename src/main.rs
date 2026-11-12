@@ -25,7 +25,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL is a required environment variable");
     let max_conn = std::env::var("DB_MAX_CONNECTIONS").ok().and_then(|v| v.parse().ok()).unwrap_or(20);
-    let db = PgPoolOptions::new().max_connections(max_conn).acquire_timeout(Duration::from_secs(5)).connect(&db_url).await?;
+    let opts = db_url.parse::<sqlx::postgres::PgConnectOptions>()?.options([("statement_timeout", "30000")]);
+    let db = PgPoolOptions::new().max_connections(max_conn).acquire_timeout(Duration::from_secs(5)).connect_with(opts).await?;
     sqlx::migrate!("./migrations").run(&db).await?;
 
     let cfg = Config::from_env();

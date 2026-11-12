@@ -270,6 +270,7 @@ pub async fn bulk(State(state): State<AppState>, user: AuthUser, ApiJson(b): Api
 pub struct StatsQuery { pub days: Option<i64>, pub granularity: Option<String> }
 
 pub async fn link_stats(State(state): State<AppState>, user: AuthUser, Path(code): Path<String>, ApiQuery(q): ApiQuery<StatsQuery>) -> ApiResult<Json<serde_json::Value>> {
+    let _gate = state.heavy().await?;
     fetch_link(&state, &code, Some(user.id)).await?;
     let days = stats::clamp_days(q.days);
     let scope = Scope { user_id: Some(user.id), code: Some(code) };
@@ -296,6 +297,7 @@ pub async fn qr(State(state): State<AppState>, user: AuthUser, Path(code): Path<
 pub struct OverviewQuery { pub days: Option<i64>, pub granularity: Option<String> }
 
 pub async fn overview(State(state): State<AppState>, user: AuthUser, ApiQuery(q): ApiQuery<OverviewQuery>) -> ApiResult<Json<serde_json::Value>> {
+    let _gate = state.heavy().await?;
     let days = stats::clamp_days(q.days);
     let scope = Scope { user_id: Some(user.id), code: None };
     let (total, active): (i64, i64) = sqlx::query_as(&format!(
@@ -314,6 +316,7 @@ pub async fn overview(State(state): State<AppState>, user: AuthUser, ApiQuery(q)
 
 /// Account-wide analytics (all of the user's links).
 pub async fn account_analytics(State(state): State<AppState>, user: AuthUser, ApiQuery(q): ApiQuery<StatsQuery>) -> ApiResult<Json<serde_json::Value>> {
+    let _gate = state.heavy().await?;
     let days = stats::clamp_days(q.days);
     let scope = Scope { user_id: Some(user.id), code: None };
     let (clicks, visitors) = stats::window_totals(&state.db, &scope, days as i32, 0).await?;

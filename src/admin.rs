@@ -15,6 +15,7 @@ use sqlx::{FromRow, Postgres, QueryBuilder};
 pub struct RangeQuery { pub days: Option<i64>, pub granularity: Option<String> }
 
 pub async fn overview(State(state): State<AppState>, _a: AdminUser, ApiQuery(q): ApiQuery<RangeQuery>) -> ApiResult<Json<serde_json::Value>> {
+    let _gate = state.heavy().await?;
     let days = stats::clamp_days(q.days);
     let g = stats::gran(&q.granularity);
     let db = &state.db;
@@ -46,6 +47,7 @@ pub async fn overview(State(state): State<AppState>, _a: AdminUser, ApiQuery(q):
 }
 
 pub async fn analytics(State(state): State<AppState>, _a: AdminUser, ApiQuery(q): ApiQuery<RangeQuery>) -> ApiResult<Json<serde_json::Value>> {
+    let _gate = state.heavy().await?;
     let days = stats::clamp_days(q.days);
     let scope = Scope::default();
     let db = &state.db;

@@ -1,17 +1,20 @@
 use crate::{config::Config, error::{ApiError, ApiResult}, ratelimit::RateLimiter};
 use sqlx::PgPool;
 use std::{sync::Arc, time::Duration};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 #[derive(Clone)]
 pub struct AppState {
     pub db: PgPool,
     pub cfg: Arc<Config>,
     pub limiter: Arc<RateLimiter>,
+    /// Bounds concurrent heavy analytics requests so they cannot exhaust the DB pool used by redirects.
+    pub heavy_gate: Arc<Semaphore>,
 }
 
 impl AppState {
     pub fn new(db: PgPool, cfg: Config) -> Self {
-        AppState { db, cfg: Arc::new(cfg), limiter: Arc::new(RateLimiter::new()) }
+        AppState { db, cfg: Arc::new(cfg), limiter: Arc::new(RateLimiter::new()), heavy_gate: Arc::new(Semaphore::new(4)) }
     }
 
     /// Process-local limit; only for high-rate, low-stakes paths (redirects).
@@ -44,6 +47,14 @@ impl AppState {
         .fetch_one(&self.db)
         .await?;
         if hits as u32 > max { Err(ApiError::TooMany) } else { Ok(()) }
+    }
+
+    /// Hold the returned permit for the duration of an analytics request.
+    pub async fn heavy(&self) -> ApiResult<OwnedSemaphorePermit> {
+        match tokio::time::timeout(Duration::from_secs(10), self.heavy_gate.clone().acquire_owned()).await {
+            Ok(Ok(p)) => Ok(p),
+            _ => Err(ApiError::Unavailable),
+        }
     }
 
     pub async fn setting(&self, key: &str) -> Option<String> {

@@ -419,3 +419,30 @@ async fn unverified_domain_claims_cannot_squat(pool: PgPool) {
     let (s4, _) = t.post("/api/domains", Some(&a), json!({"hostname":"10.1.2.3"})).await;
     assert_eq!(s4, StatusCode::BAD_REQUEST);
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn click_totals_and_unique_visitors_are_exact(pool: PgPool) {
+    let t = setup(pool.clone());
+    let c = t.register("a@example.com").await;
+    let (_, l) = t.post("/api/links", Some(&c), json!({"targetUrl":"https://example.com/x","alias":"statlink"})).await;
+    let code = l["code"].as_str().unwrap().to_string();
+    // 6 clicks: visitor A x3, visitor B x2, one legacy click without a visitor hash; plus one 40-day-old click.
+    for v in [Some("A"), Some("A"), Some("A"), Some("B"), Some("B"), None] {
+        sqlx::query("insert into link_statistics (link_id, visitor_hash) values ($1,$2)").bind(&code).bind(v).execute(&pool).await.unwrap();
+    }
+    sqlx::query("insert into link_statistics (link_id, visitor_hash, created_at) values ($1,'C', now() - interval '40 days')").bind(&code).execute(&pool).await.unwrap();
+    let (s, st) = t.get(&format!("/api/links/{code}/stats?days=30"), Some(&c)).await;
+    assert_eq!(s, StatusCode::OK);
+    assert_eq!(st["clicks"], 6);
+    assert_eq!(st["uniqueVisitors"], 2);
+    let series_clicks: i64 = st["series"].as_array().unwrap().iter().map(|p| p["clicks"].as_i64().unwrap()).sum();
+    let series_max_visitors: i64 = st["series"].as_array().unwrap().iter().map(|p| p["visitors"].as_i64().unwrap()).max().unwrap();
+    assert_eq!(series_clicks, 6);
+    assert_eq!(series_max_visitors, 2);
+    // Account-wide view agrees.
+    let (_, a) = t.get("/api/stats/analytics?days=30", Some(&c)).await;
+    assert_eq!((a["clicks"].as_i64(), a["uniqueVisitors"].as_i64()), (Some(6), Some(2)));
+    // 60-day window includes the old click and its visitor.
+    let (_, w) = t.get(&format!("/api/links/{code}/stats?days=60"), Some(&c)).await;
+    assert_eq!((w["clicks"].as_i64(), w["uniqueVisitors"].as_i64()), (Some(7), Some(3)));
+}

@@ -40,11 +40,15 @@ pub async fn series(db: &PgPool, scope: &Scope, days: i64, g: &str) -> ApiResult
            from generate_series(date_trunc($1, now() - make_interval(days => $2), 'UTC'),
                                 date_trunc($1, now(), 'UTC'), ('1 ' || $1)::interval) as b(bucket)
            left join (
-               select date_trunc($1, s.created_at, 'UTC') as bucket, count(*) as clicks, count(distinct s.visitor_hash) as visitors
-               from link_statistics s join link l on l.id = s.link_id
-               where s.created_at >= date_trunc($1, now() - make_interval(days => $2), 'UTC')
-                 and ($3::bigint is null or l.user_id = $3) and ($4::text is null or l.id = $4)
-               group by 1) c on c.bucket = b.bucket
+               -- Two-level aggregate: de-duplicating visitors with GROUP BY lets Postgres use a hash
+               -- aggregate instead of sorting every click for count(distinct).
+               select bucket, sum(n) as clicks, count(visitor_hash) as visitors from (
+                   select date_trunc($1, s.created_at, 'UTC') as bucket, s.visitor_hash, count(*) as n
+                   from link_statistics s join link l on l.id = s.link_id
+                   where s.created_at >= date_trunc($1, now() - make_interval(days => $2), 'UTC')
+                     and ($3::bigint is null or l.user_id = $3) and ($4::text is null or l.id = $4)
+                   group by 1, 2) d
+               group by bucket) c on c.bucket = b.bucket
            order by b.bucket"#,
     )
     .bind(g).bind(days as i32).bind(scope.user_id).bind(&scope.code)
@@ -54,10 +58,12 @@ pub async fn series(db: &PgPool, scope: &Scope, days: i64, g: &str) -> ApiResult
 /// (clicks, unique visitors) for a window `[now - from_days, now - to_days)`.
 pub async fn window_totals(db: &PgPool, scope: &Scope, from_days: i32, to_days: i32) -> ApiResult<(i64, i64)> {
     Ok(sqlx::query_as::<_, (i64, i64)>(
-        r#"select count(*)::bigint, count(distinct s.visitor_hash)::bigint
-           from link_statistics s join link l on l.id = s.link_id
-           where s.created_at >= now() - make_interval(days => $1) and s.created_at < now() - make_interval(days => $2)
-             and ($3::bigint is null or l.user_id = $3) and ($4::text is null or l.id = $4)"#,
+        r#"select coalesce(sum(n), 0)::bigint, count(visitor_hash)::bigint from (
+               select s.visitor_hash, count(*) as n
+               from link_statistics s join link l on l.id = s.link_id
+               where s.created_at >= now() - make_interval(days => $1) and s.created_at < now() - make_interval(days => $2)
+                 and ($3::bigint is null or l.user_id = $3) and ($4::text is null or l.id = $4)
+               group by s.visitor_hash) d"#,
     )
     .bind(from_days).bind(to_days).bind(scope.user_id).bind(&scope.code)
     .fetch_one(db).await?)
